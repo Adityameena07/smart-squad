@@ -524,78 +524,86 @@ export default function Home() {
 
     // ── NEW FEATURE 5: AI Mock Interview ──
     const [isInterviewing, setIsInterviewing] = useState(false);
-    const [speechTranscript, setSpeechTranscript] = useState('');
-    const [fillerWordsCount, setFillerWordsCount] = useState(0);
     const [interviewStartTime, setInterviewStartTime] = useState(0);
-    const [wpm, setWpm] = useState(0);
     const [interviewStage, setInterviewStage] = useState<'intro' | 'q1' | 'q2' | 'evaluating' | 'report'>('intro');
     const [evalResult, setEvalResult] = useState<any>(null);
     const [currentAiQuestion, setCurrentAiQuestion] = useState("Hi there! Let's start the mock interview. Tell me about a time you solved a complex technical problem.");
-    const recognitionRef = useRef<any>(null);
+    
+    // WebRTC MediaRecorder state
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<BlobPart[]>([]);
+    const [recordingTimer, setRecordingTimer] = useState(0);
 
-    const startInterview = () => {
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (isInterviewing && interviewStage === 'q1') {
+            interval = setInterval(() => setRecordingTimer(prev => prev + 1), 1000);
+        }
+        return () => clearInterval(interval);
+    }, [isInterviewing, interviewStage]);
+
+    const startInterview = async () => {
         setIsInterviewing(true);
-        setSpeechTranscript('');
-        setFillerWordsCount(0);
         setInterviewStartTime(Date.now());
         setInterviewStage('q1');
         setEvalResult(null);
+        setRecordingTimer(0);
+        audioChunksRef.current = [];
 
-        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            alert('Speech Recognition API is not supported in this browser. Please use Chrome/Edge.');
-            return;
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const recorder = new MediaRecorder(stream);
+            
+            recorder.ondataavailable = (e) => {
+                if (e.data.size > 0) audioChunksRef.current.push(e.data);
+            };
+
+            recorder.start(200);
+            mediaRecorderRef.current = recorder;
+        } catch (err) {
+            alert("Microphone access denied. Please allow microphone access to use this feature.");
+            setIsInterviewing(false);
+            setInterviewStage('intro');
         }
-
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = 'en-US';
-
-        recognition.onresult = (event: any) => {
-            let currentText = '';
-            for (let i = 0; i < event.results.length; ++i) {
-                currentText += event.results[i][0].transcript + ' ';
-            }
-            setSpeechTranscript(currentText);
-
-            const words = currentText.toLowerCase().split(/\s+/);
-            const fillers = words.filter(w => ['um', 'uh', 'like', 'literally', 'basically'].includes(w));
-            setFillerWordsCount(fillers.length);
-        };
-
-        recognition.start();
-        recognitionRef.current = recognition;
     };
 
     const stopInterviewAndEvaluate = async () => {
-        if (recognitionRef.current) recognitionRef.current.stop();
         setInterviewStage('evaluating');
         
-        try {
-            const words = speechTranscript.split(/\s+/).length;
-            const elapsedMins = (Date.now() - interviewStartTime) / 60000;
-            const finalWpm = elapsedMins > 0 ? Math.round(words / elapsedMins) : 0;
-            setWpm(finalWpm);
-
-            const res = await fetch('/api/interview/evaluate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ transcript: speechTranscript, fillers: fillerWordsCount, wpm: finalWpm })
-            });
-            const data = await res.json();
-            const cleanJson = data.reply.replace(/```json|```/g, '').trim();
-            setEvalResult(JSON.parse(cleanJson));
-        } catch(e) {
-            setEvalResult({ 
-                confidence_score: 75, 
-                content_accuracy_score: 80, 
-                hesitation_notes: 'Failed to reach evaluation server, but noted ' + fillerWordsCount + ' filler words.', 
-                wrong_statements_detected: ['Could not evaluate offline'], 
-                improvement_plan: '- Practice speaking clearly without relying on filler words.' 
-            });
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            mediaRecorderRef.current.stop();
+            mediaRecorderRef.current.stream.getTracks().forEach(t => t.stop());
         }
-        setInterviewStage('report');
+
+        await new Promise(r => setTimeout(r, 500));
+
+        try {
+            const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+            const reader = new FileReader();
+            
+            reader.readAsDataURL(audioBlob);
+            reader.onloadend = async () => {
+                const base64Audio = (reader.result as string).split(',')[1];
+
+                const res = await fetch('/api/interview/evaluate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ audioBase64: base64Audio })
+                });
+                
+                const data = await res.json();
+                try {
+                    const cleanJson = data.reply.replace(/```json|```/g, '').trim();
+                    setEvalResult(JSON.parse(cleanJson));
+                } catch(e) {
+                    setEvalResult({ confidence_score: 50, content_accuracy_score: 50, hesitation_notes: 'Failed to parse Gemini response.', wrong_statements_detected: ['Parsing error'], improvement_plan: 'Please try again.' });
+                }
+                setInterviewStage('report');
+            };
+        } catch(e) {
+            setEvalResult({ confidence_score: 0, content_accuracy_score: 0, hesitation_notes: 'Failed to evaluate audio.', wrong_statements_detected: ['Upload error'], improvement_plan: 'Please try again.' });
+            setInterviewStage('report');
+        }
     };
 
     // ── FEATURE 9: Trending Skills ──
@@ -2712,7 +2720,7 @@ export default function Home() {
                                 <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-light)', textAlign: 'center' }}>
                                     <div style={{ fontSize: '2.5rem', fontWeight: 800, color: evalResult.confidence_score > 75 ? 'var(--success)' : 'var(--accent)' }}>{evalResult.confidence_score}%</div>
                                     <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)' }}>Confidence & Pacing</div>
-                                    <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--text-main)' }}>WPM: {wpm} | Fillers: {fillerWordsCount}</div>
+                                    <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--text-main)' }}>Gemini Audio Analysis</div>
                                 </div>
                                 <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-light)', textAlign: 'center' }}>
                                     <div style={{ fontSize: '2.5rem', fontWeight: 800, color: evalResult.content_accuracy_score > 75 ? 'var(--success)' : 'var(--danger)' }}>{evalResult.content_accuracy_score}%</div>
@@ -2751,16 +2759,10 @@ export default function Home() {
                                 <div style={{ fontSize: '1.05rem', fontWeight: 600 }}>{currentAiQuestion}</div>
                             </div>
 
-                            <div style={{ position: 'relative', width: '100%', minHeight: '150px', background: '#fff', borderRadius: '12px', border: '1px solid var(--border-light)', padding: '1rem', marginBottom: '1.5rem' }}>
-                                {speechTranscript ? (
-                                    <p style={{ fontSize: '1.1rem', lineHeight: 1.6 }}>{speechTranscript}</p>
-                                ) : (
-                                    <p style={{ color: 'var(--text-main)', fontStyle: 'italic' }}>Listening... Start speaking.</p>
-                                )}
-                                
-                                <div style={{ position: 'absolute', bottom: '1rem', right: '1rem', display: 'flex', gap: '1rem' }}>
-                                    <span style={{ fontSize: '0.75rem', background: '#f1f5f9', padding: '0.2rem 0.6rem', borderRadius: '10px' }}>Fillers (um/uh): <strong style={{ color: fillerWordsCount > 3 ? 'var(--danger)' : 'inherit' }}>{fillerWordsCount}</strong></span>
-                                </div>
+                            <div style={{ position: 'relative', width: '100%', minHeight: '150px', background: '#fff', borderRadius: '12px', border: '1px solid var(--border-light)', padding: '1rem', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                                <div style={{ width: '16px', height: '16px', background: 'var(--danger)', borderRadius: '50%', animation: 'pulse 1s infinite', marginBottom: '0.5rem' }}></div>
+                                <p style={{ color: 'var(--text-main)', fontStyle: 'italic', fontWeight: 600 }}>Recording in progress...</p>
+                                <p style={{ fontSize: '2rem', fontWeight: 800, marginTop: '0.5rem' }}>00:{recordingTimer.toString().padStart(2, '0')}</p>
                             </div>
 
                             <div style={{ display: 'flex', justifyContent: 'center' }}>

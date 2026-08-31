@@ -2,20 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
     try {
-        const { transcript, fillers, wpm } = await request.json() as { transcript: string; fillers: number; wpm: number };
+        const { audioBase64 } = await request.json() as { audioBase64: string };
 
-        if (!transcript) {
-            return NextResponse.json({ reply: '{"confidence_score": 0, "content_accuracy_score": 0, "hesitation_notes": "No transcript provided.", "wrong_statements_detected": ["None"], "improvement_plan": "Please speak into the microphone."}' });
+        if (!audioBase64) {
+            return NextResponse.json({ reply: '{"confidence_score": 0, "content_accuracy_score": 0, "hesitation_notes": "No audio provided.", "wrong_statements_detected": ["None"], "improvement_plan": "Please speak into the microphone."}' });
         }
 
         const apiKey = process.env.GEMINI_API_KEY;
         if (!apiKey) {
-            return NextResponse.json({ reply: '{"confidence_score": 70, "content_accuracy_score": 75, "hesitation_notes": "Offline mock. Filler words detected.", "wrong_statements_detected": ["Offline mock data"], "improvement_plan": "Add GEMINI_API_KEY to test real AI evaluation."}' });
+            return NextResponse.json({ reply: '{"confidence_score": 70, "content_accuracy_score": 75, "hesitation_notes": "Offline mock. Audio received.", "wrong_statements_detected": ["Offline mock data"], "improvement_plan": "Add GEMINI_API_KEY to test real AI evaluation."}' });
         }
 
         const SYSTEM_PROMPT = `You are a strict, highly analytical senior technical interviewer evaluating a candidate's spoken response.
-The candidate had ${fillers} filler words ("um", "like", "you know") and spoke at ${wpm} Words Per Minute (WPM).
-Read their transcript and return a STRICT JSON object representing their evaluation scorecard.
+Listen to the provided audio file. Transcribe the audio internally, and evaluate their communication.
+Pay close attention to filler words ("um", "uh", "like"), pacing, and technical accuracy.
+Return a STRICT JSON object representing their evaluation scorecard.
 Do not output markdown code blocks. Just output raw JSON.
 
 JSON Schema required:
@@ -34,7 +35,13 @@ JSON Schema required:
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-                    contents: [{ role: 'user', parts: [{ text: `Candidate Transcript: ${transcript}` }] }],
+                    contents: [{ 
+                        role: 'user', 
+                        parts: [
+                            { text: "Evaluate this audio response." },
+                            { inlineData: { mimeType: "audio/webm", data: audioBase64 } }
+                        ] 
+                    }],
                     generationConfig: {
                         responseMimeType: "application/json",
                         temperature: 0.2
@@ -43,7 +50,11 @@ JSON Schema required:
             }
         );
 
-        if (!geminiRes.ok) throw new Error('Gemini API error');
+        if (!geminiRes.ok) {
+            const err = await geminiRes.text();
+            console.error('Gemini API Error:', err);
+            throw new Error('Gemini API error');
+        }
 
         const data = await geminiRes.json();
         const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
