@@ -639,6 +639,7 @@ export default function Home() {
     const [roastComments, setRoastComments] = useState<{x: number, y: number, text: string}[]>([]);
     const [roastInput, setRoastInput] = useState<{x: number, y: number} | null>(null);
     const [roastText, setRoastText] = useState("");
+    const [pdfLoaded, setPdfLoaded] = useState(false);
 
     const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
         if (!canvasRef.current) return;
