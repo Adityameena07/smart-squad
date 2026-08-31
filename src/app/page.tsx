@@ -1,5 +1,9 @@
 "use client";
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import Head from 'next/head';
+import Link from 'next/link';
+import { flashcardsData } from '../data/flashcards';
+import { codingProblemsData } from '../data/codingProblems';
 
 // All 12 Engineering Branches Mapped
 const branchNamesMap: Record<string, string> = {
@@ -607,10 +611,16 @@ export default function Home() {
     };
 
     // ── NEW EXTENSION 1: WASM Coding Challenges ──
-    const [pythonCode, setPythonCode] = useState("def reverse_array(arr):\n    # Write your code here\n    pass\n\nprint(reverse_array([1, 2, 3]))");
+    const [activeCodingProblemId, setActiveCodingProblemId] = useState<number>(1);
+    const [pythonCode, setPythonCode] = useState(codingProblemsData[0].defaultCode);
     const [pythonOutput, setPythonOutput] = useState("");
     const [isPyRunning, setIsPyRunning] = useState(false);
     const pyWorkerRef = useRef<Worker | null>(null);
+
+    useEffect(() => {
+        const p = codingProblemsData.find(p => p.id === activeCodingProblemId);
+        if (p) setPythonCode(p.defaultCode);
+    }, [activeCodingProblemId]);
 
     const runPythonCode = () => {
         setIsPyRunning(true);
@@ -659,11 +669,7 @@ export default function Home() {
     };
 
     // ── NEW EXTENSION 3: Spaced Repetition Flashcards ──
-    const [flashcards, setFlashcards] = useState<{id: number, q: string, a: string, interval: number, ease: number, next: number}[]>([
-        { id: 1, q: "What is the time complexity of QuickSort?", a: "Average: O(n log n), Worst: O(n^2)", interval: 0, ease: 2.5, next: 0 },
-        { id: 2, q: "Explain the difference between TCP and UDP.", a: "TCP is reliable, UDP is fast.", interval: 0, ease: 2.5, next: 0 },
-        { id: 3, q: "What is React Virtual DOM?", a: "A lightweight in-memory representation of the real DOM.", interval: 0, ease: 2.5, next: 0 }
-    ]);
+    const [flashcards, setFlashcards] = useState<{id: number, q: string, a: string, interval: number, ease: number, next: number}[]>(flashcardsData);
     const [currentCardIdx, setCurrentCardIdx] = useState(0);
     const [showAnswer, setShowAnswer] = useState(false);
 
@@ -2982,10 +2988,32 @@ export default function Home() {
                         <p>Write Python code in your browser. Execution runs securely in a local Web Worker via Pyodide—costing zero backend compute.</p>
                     </div>
                     <div className="grid-2">
-                        <div className="card" style={{ background: '#f8fafc' }}>
-                            <h3 style={{ marginBottom: '1rem' }}>Problem: Reverse Array</h3>
-                            <p style={{ color: 'var(--text-main)', marginBottom: '1rem' }}>Write a Python function <code>reverse_array(arr)</code> that takes a list of integers and returns it in reverse order.</p>
-                            <p style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}><strong>Example:</strong><br/>Input: <code>[1, 2, 3]</code><br/>Output: <code>[3, 2, 1]</code></p>
+                        <div className="card" style={{ background: '#f8fafc', display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ marginBottom: '1.5rem' }}>
+                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.5rem' }}>SELECT PROBLEM</label>
+                                <select 
+                                    style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '1rem', outline: 'none' }}
+                                    value={activeCodingProblemId}
+                                    onChange={(e) => setActiveCodingProblemId(Number(e.target.value))}
+                                >
+                                    {codingProblemsData.map(p => (
+                                        <option key={p.id} value={p.id}>{p.title} - {p.difficulty}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            
+                            {(() => {
+                                const activeProblem = codingProblemsData.find(p => p.id === activeCodingProblemId) || codingProblemsData[0];
+                                return (
+                                    <>
+                                        <h3 style={{ marginBottom: '1rem' }}>{activeProblem.title} <span style={{ fontSize: '0.8rem', padding: '0.2rem 0.6rem', borderRadius: '12px', background: activeProblem.difficulty === 'Easy' ? '#dcfce7' : '#fee2e2', color: activeProblem.difficulty === 'Easy' ? '#166534' : '#991b1b', verticalAlign: 'middle', marginLeft: '0.5rem' }}>{activeProblem.difficulty}</span></h3>
+                                        <p style={{ color: 'var(--text-main)', marginBottom: '1rem', whiteSpace: 'pre-wrap' }}>{activeProblem.description}</p>
+                                        <div style={{ fontSize: '0.9rem', color: 'var(--text-main)', background: 'rgba(0,0,0,0.03)', padding: '1rem', borderRadius: '8px', whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
+                                            <strong>Example:</strong><br/>{activeProblem.example}
+                                        </div>
+                                    </>
+                                )
+                            })()}
                         </div>
                         <div className="card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                             <div style={{ padding: '0.75rem 1rem', background: '#1e293b', color: 'white', fontWeight: 600, display: 'flex', justifyContent: 'space-between' }}>
