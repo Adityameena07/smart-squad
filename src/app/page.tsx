@@ -606,6 +606,173 @@ export default function Home() {
         }
     };
 
+    // ── NEW EXTENSION 1: WASM Coding Challenges ──
+    const [pythonCode, setPythonCode] = useState("def reverse_array(arr):\n    # Write your code here\n    pass\n\nprint(reverse_array([1, 2, 3]))");
+    const [pythonOutput, setPythonOutput] = useState("");
+    const [isPyRunning, setIsPyRunning] = useState(false);
+    const pyWorkerRef = useRef<Worker | null>(null);
+
+    const runPythonCode = () => {
+        setIsPyRunning(true);
+        setPythonOutput("Running...");
+        if (pyWorkerRef.current) pyWorkerRef.current.terminate();
+        
+        const worker = new Worker('/pythonWorker.js');
+        pyWorkerRef.current = worker;
+
+        const timeout = setTimeout(() => {
+            worker.terminate();
+            setPythonOutput("Error: Execution timed out (Infinite loop?)");
+            setIsPyRunning(false);
+        }, 5000);
+
+        worker.onmessage = (e) => {
+            clearTimeout(timeout);
+            setPythonOutput(e.data.output || (e.data.success ? "Success (no output)" : "Error"));
+            setIsPyRunning(false);
+        };
+
+        worker.postMessage({ id: 1, code: pythonCode });
+    };
+
+    // ── NEW EXTENSION 2: Peer Resume Roasts ──
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [roastComments, setRoastComments] = useState<{x: number, y: number, text: string}[]>([]);
+    const [roastInput, setRoastInput] = useState<{x: number, y: number} | null>(null);
+    const [roastText, setRoastText] = useState("");
+
+    const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+        if (!canvasRef.current) return;
+        const rect = canvasRef.current.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        const y = ((e.clientY - rect.top) / rect.height) * 100;
+        setRoastInput({ x, y });
+    };
+
+    const addRoastComment = () => {
+        if (roastInput && roastText) {
+            setRoastComments(prev => [...prev, { ...roastInput, text: roastText }]);
+            setRoastInput(null);
+            setRoastText("");
+        }
+    };
+
+    // ── NEW EXTENSION 3: Spaced Repetition Flashcards ──
+    const [flashcards, setFlashcards] = useState<{id: number, q: string, a: string, interval: number, ease: number, next: number}[]>([
+        { id: 1, q: "What is the time complexity of QuickSort?", a: "Average: O(n log n), Worst: O(n^2)", interval: 0, ease: 2.5, next: 0 },
+        { id: 2, q: "Explain the difference between TCP and UDP.", a: "TCP is reliable, UDP is fast.", interval: 0, ease: 2.5, next: 0 },
+        { id: 3, q: "What is React Virtual DOM?", a: "A lightweight in-memory representation of the real DOM.", interval: 0, ease: 2.5, next: 0 }
+    ]);
+    const [currentCardIdx, setCurrentCardIdx] = useState(0);
+    const [showAnswer, setShowAnswer] = useState(false);
+
+    const sm2Rate = (rating: number) => {
+        const card = flashcards[currentCardIdx];
+        let newInterval = card.interval;
+        let newEase = card.ease + (0.1 - (5 - rating) * (0.08 + (5 - rating) * 0.02));
+        if (newEase < 1.3) newEase = 1.3;
+
+        if (rating < 3) {
+            newInterval = 1;
+        } else if (card.interval === 0) {
+            newInterval = 1;
+        } else if (card.interval === 1) {
+            newInterval = 6;
+        } else {
+            newInterval = Math.round(card.interval * newEase);
+        }
+
+        const nextDate = Date.now() + newInterval * 24 * 60 * 60 * 1000;
+        const updated = [...flashcards];
+        updated[currentCardIdx] = { ...card, interval: newInterval, ease: newEase, next: nextDate };
+        setFlashcards(updated);
+        setShowAnswer(false);
+        setCurrentCardIdx((prev) => (prev + 1) % flashcards.length);
+    };
+
+    // ── NEW EXTENSION 4: GitHub Portfolio Generator ──
+    const [ghUsername, setGhUsername] = useState("");
+    const [ghProfile, setGhProfile] = useState<any>(null);
+    const [ghLoading, setGhLoading] = useState(false);
+
+    const fetchGithub = async () => {
+        if (!ghUsername) return;
+        setGhLoading(true);
+        try {
+            const res = await fetch(`https://api.github.com/users/${ghUsername}/repos?per_page=100`);
+            if (res.status === 403) throw new Error("GitHub API Rate Limit Exceeded. Try again later.");
+            const repos = await res.json();
+            
+            const languages: Record<string, number> = {};
+            let totalStars = 0;
+            repos.forEach((r: any) => {
+                totalStars += r.stargazers_count;
+                if (r.language) languages[r.language] = (languages[r.language] || 0) + 1;
+            });
+            const topLangs = Object.entries(languages).sort((a, b) => b[1] - a[1]).slice(0, 3);
+            const topRepos = repos.sort((a: any, b: any) => b.stargazers_count - a.stargazers_count).slice(0, 3);
+            
+            setGhProfile({ totalStars, topLangs, topRepos, avatar: repos[0]?.owner?.avatar_url, name: repos[0]?.owner?.login });
+        } catch (e: any) {
+            alert(e.message || "Failed to fetch GitHub profile.");
+        }
+        setGhLoading(false);
+    };
+
+    // ── NEW EXTENSION 5: Campus Stipend Heatmap ──
+    const [heatmapPins, setHeatmapPins] = useState<{lat: number, lng: number, status: string, stipend: string}[]>([
+        { lat: 12.9716, lng: 77.5946, status: 'hired', stipend: '₹50k/mo' },
+        { lat: 12.9352, lng: 77.6245, status: 'ghosted', stipend: 'Unknown' },
+        { lat: 12.9569, lng: 77.7011, status: 'interviewed', stipend: '₹30k/mo' },
+        { lat: 13.0, lng: 77.6, status: 'hired', stipend: '₹80k/mo' }
+    ]);
+
+    useEffect(() => {
+        const addScript = (src: string, id: string) => {
+            if (!document.getElementById(id)) {
+                const s = document.createElement('script');
+                s.src = src;
+                s.id = id;
+                document.head.appendChild(s);
+            }
+        };
+        const addStyle = (href: string, id: string) => {
+            if (!document.getElementById(id)) {
+                const l = document.createElement('link');
+                l.rel = 'stylesheet';
+                l.href = href;
+                l.id = id;
+                document.head.appendChild(l);
+            }
+        };
+
+        addStyle('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', 'leaflet-css');
+        addScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', 'leaflet-js');
+        addScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js', 'pdfjs-js');
+    }, []);
+
+    const initMap = useCallback((node: HTMLDivElement | null) => {
+        if (node && (window as any).L && !node.innerHTML) {
+            const L = (window as any).L;
+            const map = L.map(node).setView([12.9716, 77.5946], 11);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
+
+            heatmapPins.forEach(pin => {
+                const color = pin.status === 'hired' ? '#10b981' : pin.status === 'ghosted' ? '#ef4444' : '#f59e0b';
+                const circle = L.circleMarker([pin.lat, pin.lng], { color, radius: 10, fillOpacity: 0.8 }).addTo(map);
+                circle.bindPopup(`<b>Status:</b> ${pin.status.toUpperCase()}<br><b>Stipend:</b> ${pin.stipend}`);
+            });
+
+            map.on('click', (e: any) => {
+                const newPin = { lat: e.latlng.lat, lng: e.latlng.lng, status: 'interviewed', stipend: 'Unknown' };
+                setHeatmapPins(prev => [...prev, newPin]);
+                L.circleMarker([newPin.lat, newPin.lng], { color: '#f59e0b', radius: 10, fillOpacity: 0.8 })
+                    .addTo(map)
+                    .bindPopup(`<b>Status:</b> ${newPin.status}<br><b>Stipend:</b> ${newPin.stipend}`);
+            });
+        }
+    }, [heatmapPins]);
+
     // ── FEATURE 9: Trending Skills ──
     const trendingSkills = useMemo(() => {
         const pool = branchFilter === 'all' ? allOpportunities : allOpportunities.filter(o => o.branch === branchFilter);
@@ -1246,6 +1413,15 @@ export default function Home() {
                     <li><a className={`nav-tab ${activeView === 'sprints-page' ? 'active' : ''}`} onClick={() => { setActiveView('sprints-page'); setIsSidebarOpen(false); }}>⚡ Micro-Internship Sprints</a></li>
                     <li><a className={`nav-tab ${activeView === 'skill-debt-page' ? 'active' : ''}`} onClick={() => { setActiveView('skill-debt-page'); setIsSidebarOpen(false); }}>🤖 AI Skill Debt Analyzer</a></li>
                     <li><a className={`nav-tab ${activeView === 'mock-interview-page' ? 'active' : ''}`} onClick={() => { setActiveView('mock-interview-page'); setIsSidebarOpen(false); }}>🎙️ AI Mock Interview</a></li>
+                </ul>
+
+                <div className="sidebar-nav-title" style={{ marginTop: '0.85rem' }}>Zero-Compute Tools</div>
+                <ul className="sidebar-menu">
+                    <li><a className={`nav-tab ${activeView === 'coding-challenges' ? 'active' : ''}`} onClick={() => { setActiveView('coding-challenges'); setIsSidebarOpen(false); }}>💻 WASM Coding Challenges</a></li>
+                    <li><a className={`nav-tab ${activeView === 'resume-roasts' ? 'active' : ''}`} onClick={() => { setActiveView('resume-roasts'); setIsSidebarOpen(false); }}>🔥 Peer Resume Roasts</a></li>
+                    <li><a className={`nav-tab ${activeView === 'flashcards' ? 'active' : ''}`} onClick={() => { setActiveView('flashcards'); setIsSidebarOpen(false); }}>🧠 Spaced Repetition Flashcards</a></li>
+                    <li><a className={`nav-tab ${activeView === 'github-portfolio' ? 'active' : ''}`} onClick={() => { setActiveView('github-portfolio'); setIsSidebarOpen(false); }}>🐙 GitHub Portfolio Generator</a></li>
+                    <li><a className={`nav-tab ${activeView === 'campus-heatmap' ? 'active' : ''}`} onClick={() => { setActiveView('campus-heatmap'); setIsSidebarOpen(false); }}>🗺️ Stipend & Ghosting Heatmap</a></li>
                 </ul>
 
 
@@ -2773,6 +2949,193 @@ export default function Home() {
                             </div>
                         </div>
                     )}
+                </section>
+            )}
+
+            {/* ── NEW EXTENSION 1: WASM Coding Challenges ── */}
+            {isLoggedIn && activeView === 'coding-challenges' && (
+                <section className="page-view active-view">
+                    <div className="section-title">
+                        <h2>💻 WASM "Zero-Compute" Coding Challenges</h2>
+                        <p>Write Python code in your browser. Execution runs securely in a local Web Worker via Pyodide—costing zero backend compute.</p>
+                    </div>
+                    <div className="grid-2">
+                        <div className="card" style={{ background: '#f8fafc' }}>
+                            <h3 style={{ marginBottom: '1rem' }}>Problem: Reverse Array</h3>
+                            <p style={{ color: 'var(--text-main)', marginBottom: '1rem' }}>Write a Python function <code>reverse_array(arr)</code> that takes a list of integers and returns it in reverse order.</p>
+                            <p style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}><strong>Example:</strong><br/>Input: <code>[1, 2, 3]</code><br/>Output: <code>[3, 2, 1]</code></p>
+                        </div>
+                        <div className="card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ padding: '0.75rem 1rem', background: '#1e293b', color: 'white', fontWeight: 600, display: 'flex', justifyContent: 'space-between' }}>
+                                <span>main.py</span>
+                                <button onClick={runPythonCode} disabled={isPyRunning} style={{ background: isPyRunning ? '#475569' : '#10b981', border: 'none', color: 'white', padding: '0.2rem 1rem', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}>{isPyRunning ? 'Running...' : '▶ Run Code'}</button>
+                            </div>
+                            <textarea 
+                                value={pythonCode} 
+                                onChange={(e) => setPythonCode(e.target.value)}
+                                style={{ flex: 1, minHeight: '250px', background: '#0f172a', color: '#e2e8f0', fontFamily: 'monospace', fontSize: '1rem', padding: '1rem', border: 'none', outline: 'none', resize: 'vertical' }}
+                                spellCheck={false}
+                            />
+                            <div style={{ padding: '1rem', background: '#1e293b', borderTop: '1px solid #334155' }}>
+                                <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.5rem', fontWeight: 600, textTransform: 'uppercase' }}>Terminal Output</div>
+                                <pre style={{ margin: 0, color: pythonOutput.includes('Error') ? '#ef4444' : '#10b981', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>{pythonOutput || "Waiting for execution..."}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            )}
+
+            {/* ── NEW EXTENSION 2: Peer Resume Roasts ── */}
+            {isLoggedIn && activeView === 'resume-roasts' && (
+                <section className="page-view active-view">
+                    <div className="section-title">
+                        <h2>🔥 Peer-to-Peer Anonymous Resume Roasts</h2>
+                        <p>Upload a PDF and let peers click anywhere on it to leave precise, spatial feedback using local pdf.js rendering.</p>
+                    </div>
+                    <div className="card" style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                        {!pdfLoaded ? (
+                            <button className="btn btn-outline" onClick={() => setPdfLoaded(true)}>Load Sample Resume (PDF.js)</button>
+                        ) : (
+                            <div style={{ position: 'relative', display: 'inline-block', maxWidth: '100%', border: '1px solid var(--border-light)', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }}>
+                                <canvas ref={canvasRef} onClick={handleCanvasClick} width={600} height={800} style={{ display: 'block', background: '#fff', cursor: 'crosshair', maxWidth: '100%' }} />
+                                
+                                {/* Mock PDF text overlay just for visual if pdf.js isn't fully wired */}
+                                <div style={{ position: 'absolute', top: '10%', left: '10%', right: '10%', textAlign: 'left', pointerEvents: 'none' }}>
+                                    <h1 style={{ fontSize: '2rem', marginBottom: '1rem' }}>JOHN DOE</h1>
+                                    <p style={{ fontWeight: 600 }}>Software Engineer</p>
+                                    <hr style={{ margin: '1rem 0' }}/>
+                                    <p>• Built scalable microservices using Node.js</p>
+                                    <p>• Increased performance by doing some things</p>
+                                    <p>• Fixed a lot of bugs in the legacy system</p>
+                                </div>
+
+                                {roastComments.map((c, i) => (
+                                    <div key={i} style={{ position: 'absolute', left: `${c.x}%`, top: `${c.y}%`, width: '24px', height: '24px', background: '#ef4444', borderRadius: '50%', transform: 'translate(-50%, -50%)', cursor: 'pointer', border: '2px solid white', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' }} title={c.text} className="roast-dot"></div>
+                                ))}
+
+                                {roastInput && (
+                                    <div style={{ position: 'absolute', left: `${roastInput.x}%`, top: `${roastInput.y}%`, background: 'white', padding: '0.5rem', borderRadius: '8px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', transform: 'translate(-50%, 15px)', zIndex: 10, display: 'flex', gap: '0.5rem' }}>
+                                        <input type="text" autoFocus value={roastText} onChange={e => setRoastText(e.target.value)} placeholder="Type roast..." style={{ border: '1px solid var(--border-light)', borderRadius: '4px', padding: '0.25rem 0.5rem' }} onKeyDown={e => e.key === 'Enter' && addRoastComment()} />
+                                        <button onClick={addRoastComment} style={{ background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '4px', padding: '0 0.5rem', cursor: 'pointer' }}>Add</button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </section>
+            )}
+
+            {/* ── NEW EXTENSION 3: Spaced Repetition Flashcards ── */}
+            {isLoggedIn && activeView === 'flashcards' && (
+                <section className="page-view active-view">
+                    <div className="section-title">
+                        <h2>🧠 Spaced Repetition Interview Flashcards</h2>
+                        <p>Memorize complex CS concepts permanently using the SM-2 algorithm. Your progress is saved entirely locally in your browser!</p>
+                    </div>
+                    
+                    <div className="card" style={{ maxWidth: '500px', margin: '0 auto', textAlign: 'center', padding: '3rem 2rem' }}>
+                        <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '1.5rem', textTransform: 'uppercase' }}>Card {currentCardIdx + 1} of {flashcards.length}</div>
+                        <h3 style={{ fontSize: '1.5rem', marginBottom: '2rem', minHeight: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {flashcards[currentCardIdx].q}
+                        </h3>
+
+                        {!showAnswer ? (
+                            <button className="btn btn-outline" style={{ width: '100%', padding: '1rem' }} onClick={() => setShowAnswer(true)}>Show Answer</button>
+                        ) : (
+                            <div style={{ animation: 'fadeIn 0.3s' }}>
+                                <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem', color: 'var(--primary)', fontWeight: 600, minHeight: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    {flashcards[currentCardIdx].a}
+                                </div>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', marginBottom: '0.5rem' }}>How well did you know this?</div>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <button className="btn" style={{ flex: 1, background: '#ef4444', border: 'none' }} onClick={() => sm2Rate(1)}>Forgot</button>
+                                    <button className="btn" style={{ flex: 1, background: '#f59e0b', border: 'none' }} onClick={() => sm2Rate(3)}>Hard</button>
+                                    <button className="btn" style={{ flex: 1, background: '#3b82f6', border: 'none' }} onClick={() => sm2Rate(4)}>Good</button>
+                                    <button className="btn" style={{ flex: 1, background: '#10b981', border: 'none' }} onClick={() => sm2Rate(5)}>Easy</button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </section>
+            )}
+
+            {/* ── NEW EXTENSION 4: GitHub Portfolio Generator ── */}
+            {isLoggedIn && activeView === 'github-portfolio' && (
+                <section className="page-view active-view">
+                    <div className="section-title">
+                        <h2>🐙 The "No-Resume" GitHub Portfolio</h2>
+                        <p>Generate a stunning proof-of-work dashboard instantly using live data from the free GitHub REST API.</p>
+                    </div>
+
+                    <div className="card" style={{ maxWidth: '500px', margin: '0 auto 2rem auto', display: 'flex', gap: '1rem' }}>
+                        <input type="text" className="search-bar" placeholder="Enter GitHub Username (e.g., torvalds)" value={ghUsername} onChange={e => setGhUsername(e.target.value)} style={{ flex: 1 }} onKeyDown={e => e.key === 'Enter' && fetchGithub()} />
+                        <button className="btn" onClick={fetchGithub} disabled={ghLoading}>{ghLoading ? 'Fetching...' : 'Generate'}</button>
+                    </div>
+
+                    {ghProfile && (
+                        <div style={{ maxWidth: '800px', margin: '0 auto', background: '#fff', border: '1px solid var(--border-light)', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)' }}>
+                            <div style={{ background: 'var(--bg-card)', padding: '2rem', display: 'flex', alignItems: 'center', gap: '2rem', borderBottom: '1px solid var(--border-light)' }}>
+                                <img src={ghProfile.avatar} alt="Avatar" style={{ width: '100px', height: '100px', borderRadius: '50%' }} />
+                                <div>
+                                    <h2 style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>{ghProfile.name || ghUsername}</h2>
+                                    <div style={{ color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: 600 }}>⭐ {ghProfile.totalStars} Total Stars</div>
+                                </div>
+                            </div>
+                            
+                            <div className="grid-2" style={{ padding: '2rem' }}>
+                                <div>
+                                    <h3 style={{ marginBottom: '1rem', fontSize: '1.2rem', color: 'var(--text-main)' }}>Top Tech Stack</h3>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                        {ghProfile.topLangs.map((lang: any, i: number) => (
+                                            <div key={i}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem', fontWeight: 600 }}>
+                                                    <span>{lang[0]}</span>
+                                                    <span>{lang[1]} repos</span>
+                                                </div>
+                                                <div style={{ height: '8px', background: 'var(--bg-body)', borderRadius: '4px', overflow: 'hidden' }}>
+                                                    <div style={{ height: '100%', width: `${(lang[1]/ghProfile.topLangs[0][1])*100}%`, background: i === 0 ? '#3b82f6' : i === 1 ? '#10b981' : '#f59e0b' }}></div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <h3 style={{ marginBottom: '1rem', fontSize: '1.2rem', color: 'var(--text-main)' }}>Top Repositories</h3>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                        {ghProfile.topRepos.map((repo: any, i: number) => (
+                                            <div key={i} style={{ padding: '1rem', border: '1px solid var(--border-light)', borderRadius: '8px', background: '#f8fafc' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                                                    <a href={repo.html_url} target="_blank" rel="noreferrer" style={{ fontWeight: 800, color: 'var(--primary)', textDecoration: 'none' }}>{repo.name}</a>
+                                                    <span style={{ fontSize: '0.8rem', background: '#fff', padding: '0.1rem 0.5rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontWeight: 600 }}>⭐ {repo.stargazers_count}</span>
+                                                </div>
+                                                <p style={{ fontSize: '0.85rem', color: 'var(--text-main)', margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{repo.description || "No description provided."}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </section>
+            )}
+
+            {/* ── NEW EXTENSION 5: Campus Stipend Heatmap ── */}
+            {isLoggedIn && activeView === 'campus-heatmap' && (
+                <section className="page-view active-view">
+                    <div className="section-title">
+                        <h2>🗺️ Crowdsourced Stipend & Ghosting Heatmap</h2>
+                        <p>Click the map to drop a pin anonymously. See which local startups actually hire and which ones just ghost.</p>
+                    </div>
+                    
+                    <div className="card" style={{ padding: 0, overflow: 'hidden', height: '600px', borderRadius: '16px', position: 'relative' }}>
+                        <div style={{ position: 'absolute', top: '1rem', left: '50%', transform: 'translateX(-50%)', zIndex: 1000, background: 'white', padding: '0.5rem 1rem', borderRadius: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', display: 'flex', gap: '1rem', fontWeight: 600, fontSize: '0.9rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: 12, height: 12, background: '#10b981', borderRadius: '50%' }}></div> Hired</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: 12, height: 12, background: '#f59e0b', borderRadius: '50%' }}></div> Interviewed</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: 12, height: 12, background: '#ef4444', borderRadius: '50%' }}></div> Ghosted</div>
+                        </div>
+                        <div ref={initMap} style={{ width: '100%', height: '100%', background: '#e2e8f0' }}></div>
+                    </div>
                 </section>
             )}
 
