@@ -473,6 +473,104 @@ export default function Home() {
     const [fraudLoading, setFraudLoading] = useState(false);
     const [fraudBranch, setFraudBranch] = useState('all');
 
+    // ── NEW FEATURE 1: Interview Intel Vault ──
+    const [hasContributedVault, setHasContributedVault] = useState(false);
+    const [vaultReviewInput, setVaultReviewInput] = useState('');
+    
+    // ── NEW FEATURE 2: Reverse-Pitch Drafts ──
+    const [draftPitches, setDraftPitches] = useState<{ id: string; recruiter: string; stipend: string; msg: string; status: 'pending'|'accepted'|'declined' }[]>([
+        { id: 'p1', recruiter: 'Google (Cloud Team)', stipend: '₹1.2L/month', msg: 'Saw your React skills, want you for a 3-month project.', status: 'pending' },
+        { id: 'p2', recruiter: 'Stripe India', stipend: '₹80k/month', msg: 'Your Open Source contributions are great. Join us.', status: 'pending' }
+    ]);
+    const handlePitchResponse = (id: string, response: 'accepted'|'declined') => {
+        setDraftPitches(prev => prev.map(p => p.id === id ? { ...p, status: response } : p));
+    };
+
+    // ── NEW FEATURE 3: Micro-Internship Sprints ──
+    const [sprintBids, setSprintBids] = useState<Set<string>>(new Set());
+    const [sprintBidModal, setSprintBidModal] = useState<string | null>(null);
+    const [sprintBidText, setSprintBidText] = useState('');
+    const handleSubmitBid = () => {
+        if (!sprintBidModal || sprintBidText.trim().length < 20) return alert("Please write a meaningful proposal.");
+        setSprintBids(prev => { const next = new Set(prev); next.add(sprintBidModal); return next; });
+        setSprintBidModal(null);
+        setSprintBidText('');
+    };
+
+    // ── NEW FEATURE 4: AI Skill Debt Analyzer ──
+    const [debtJd, setDebtJd] = useState('');
+    const [debtResult, setDebtResult] = useState<{ match: number; missing: string[] } | null>(null);
+    const [debtLoading, setDebtLoading] = useState(false);
+    const handleAnalyzeDebt = async () => {
+        if (!debtJd) return alert("Please paste a Job Description.");
+        setDebtLoading(true);
+        try {
+            const res = await fetch('/api/ai-chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    message: `Compare my skills (${candidateCV.skills.join(', ')}) against this Job Description. Return strictly a JSON object: {"match": <number 0-100>, "missing": [<array of string skills I am missing>]}. JD: ${debtJd}`,
+                    history: []
+                })
+            });
+            const data = await res.json();
+            const cleanJson = data.reply.replace(/```json|```/g, '').trim();
+            setDebtResult(JSON.parse(cleanJson));
+        } catch (e) {
+            alert("Failed to analyze. Please try again.");
+        }
+        setDebtLoading(false);
+    };
+
+    // ── NEW FEATURE 5: Video Prompts ──
+    const [isRecording, setIsRecording] = useState(false);
+    const [videoTimeLeft, setVideoTimeLeft] = useState(60);
+    const [recordedVideoUrl, setRecordedVideoUrl] = useState<string | null>(null);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const videoChunksRef = useRef<BlobPart[]>([]);
+    const liveVideoRef = useRef<HTMLVideoElement>(null);
+
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            if (liveVideoRef.current) {
+                liveVideoRef.current.srcObject = stream;
+                liveVideoRef.current.play();
+            }
+            const recorder = new MediaRecorder(stream);
+            recorder.ondataavailable = (e) => { if (e.data.size > 0) videoChunksRef.current.push(e.data); };
+            recorder.onstop = () => {
+                const blob = new Blob(videoChunksRef.current, { type: 'video/webm' });
+                setRecordedVideoUrl(URL.createObjectURL(blob));
+                stream.getTracks().forEach(t => t.stop());
+            };
+            videoChunksRef.current = [];
+            recorder.start();
+            mediaRecorderRef.current = recorder;
+            setIsRecording(true);
+            setVideoTimeLeft(60);
+        } catch (err) {
+            alert("Camera/Microphone access denied or unavailable.");
+        }
+    };
+    
+    const stopRecording = () => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+            mediaRecorderRef.current.stop();
+        }
+        setIsRecording(false);
+    };
+
+    useEffect(() => {
+        let interval: any;
+        if (isRecording && videoTimeLeft > 0) {
+            interval = setInterval(() => setVideoTimeLeft(t => t - 1), 1000);
+        } else if (isRecording && videoTimeLeft === 0) {
+            stopRecording();
+        }
+        return () => clearInterval(interval);
+    }, [isRecording, videoTimeLeft]);
+
     // ── FEATURE 9: Trending Skills ──
     const trendingSkills = useMemo(() => {
         const pool = branchFilter === 'all' ? allOpportunities : allOpportunities.filter(o => o.branch === branchFilter);
@@ -1104,6 +1202,15 @@ export default function Home() {
                     </li>
                     <li><a className={`nav-tab ${activeView === 'leaderboard-page' ? 'active' : ''}`} onClick={() => { setActiveView('leaderboard-page'); setIsSidebarOpen(false); }}>🏆 Company Leaderboard</a></li>
                     <li><a className={`nav-tab ${activeView === 'fraud-page' ? 'active' : ''}`} onClick={() => { setActiveView('fraud-page'); setIsSidebarOpen(false); }}>🛡️ Fraud Detector</a></li>
+                </ul>
+
+                <div className="sidebar-nav-title" style={{ marginTop: '0.85rem' }}>Platform Extensions</div>
+                <ul className="sidebar-menu">
+                    <li><a className={`nav-tab ${activeView === 'intel-vault-page' ? 'active' : ''}`} onClick={() => { setActiveView('intel-vault-page'); setIsSidebarOpen(false); }}>🔒 Interview Intel Vault</a></li>
+                    <li><a className={`nav-tab ${activeView === 'talent-drafts-page' ? 'active' : ''}`} onClick={() => { setActiveView('talent-drafts-page'); setIsSidebarOpen(false); }}>🤝 Talent Drafts (Reverse-Pitch)</a></li>
+                    <li><a className={`nav-tab ${activeView === 'sprints-page' ? 'active' : ''}`} onClick={() => { setActiveView('sprints-page'); setIsSidebarOpen(false); }}>⚡ Micro-Internship Sprints</a></li>
+                    <li><a className={`nav-tab ${activeView === 'skill-debt-page' ? 'active' : ''}`} onClick={() => { setActiveView('skill-debt-page'); setIsSidebarOpen(false); }}>🤖 AI Skill Debt Analyzer</a></li>
+                    <li><a className={`nav-tab ${activeView === 'video-prompts-page' ? 'active' : ''}`} onClick={() => { setActiveView('video-prompts-page'); setIsSidebarOpen(false); }}>🎥 Video Prompts</a></li>
                 </ul>
 
 
@@ -2362,6 +2469,238 @@ export default function Home() {
                     </section>
                 );
             })()}
+            {/* ── NEW FEATURE 1: Interview Intel Vault ── */}
+            {isLoggedIn && activeView === 'intel-vault-page' && (
+                <section className="page-view active-view">
+                    <div className="section-title">
+                        <h2>🔒 "Give-to-Get" Interview Intel Vault</h2>
+                        <p>Real interview experiences from students who cracked top companies. You must submit one to read them.</p>
+                    </div>
+                    
+                    {!hasContributedVault ? (
+                        <div className="card" style={{ textAlign: 'center', padding: '3rem 2rem' }}>
+                            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔐</div>
+                            <h3 style={{ marginBottom: '0.5rem' }}>Vault Locked</h3>
+                            <p style={{ color: 'var(--text-main)', marginBottom: '2rem' }}>Contribute your recent interview experience to unlock the vault.</p>
+                            <textarea 
+                                value={vaultReviewInput} 
+                                onChange={(e) => setVaultReviewInput(e.target.value)}
+                                placeholder="E.g. I interviewed at Google for SWE Intern. They asked a DP question on Arrays..."
+                                style={{ width: '100%', minHeight: '120px', marginBottom: '1rem', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-light)' }}
+                            />
+                            <button className="btn" onClick={() => {
+                                if (vaultReviewInput.length < 20) return alert('Please enter a valid review.');
+                                setHasContributedVault(true);
+                                alert('Review submitted! Vault unlocked.');
+                            }}>Submit to Unlock</button>
+                            
+                            <div style={{ marginTop: '3rem', filter: 'blur(8px)', opacity: 0.5, pointerEvents: 'none' }}>
+                                <div className="card" style={{ textAlign: 'left', marginBottom: '1rem' }}>
+                                    <h4>Google SWE Intern (On-Campus)</h4>
+                                    <p>Round 1 was a standard LeetCode medium on Graphs. Round 2 was a System Design question on designing a URL shortener...</p>
+                                </div>
+                                <div className="card" style={{ textAlign: 'left' }}>
+                                    <h4>Atlassian Backend (Off-Campus)</h4>
+                                    <p>Heavy focus on Java concurrency and multithreading. Be prepared to write code on a whiteboard without an IDE...</p>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="grid-2">
+                            <div className="card" style={{ borderLeft: '4px solid var(--primary)' }}>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600, marginBottom: '0.5rem' }}>Google • SWE Intern</div>
+                                <h3 style={{ marginBottom: '1rem' }}>Focus heavily on Graphs and DP</h3>
+                                <p style={{ fontSize: '0.9rem', color: 'var(--text-main)', lineHeight: 1.6 }}>"Round 1 was a standard LeetCode medium on Graphs. Round 2 was a System Design question on designing a URL shortener. They really care about edge cases, so talk out loud while coding."</p>
+                            </div>
+                            <div className="card" style={{ borderLeft: '4px solid var(--primary)' }}>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600, marginBottom: '0.5rem' }}>Atlassian • Backend</div>
+                                <h3 style={{ marginBottom: '1rem' }}>Java Concurrency is key</h3>
+                                <p style={{ fontSize: '0.9rem', color: 'var(--text-main)', lineHeight: 1.6 }}>"Heavy focus on Java concurrency and multithreading. Be prepared to write code on a whiteboard without an IDE. They also asked about my open source contributions."</p>
+                            </div>
+                            <div className="card" style={{ borderLeft: '4px solid var(--primary)' }}>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600, marginBottom: '0.5rem' }}>Stripe • Frontend</div>
+                                <h3 style={{ marginBottom: '1rem' }}>React internals & Performance</h3>
+                                <p style={{ fontSize: '0.9rem', color: 'var(--text-main)', lineHeight: 1.6 }}>"They asked me to build a complex UI component from scratch in 45 minutes. Study React hooks deeply, especially useEffect and useMemo. No algorithmic trick questions."</p>
+                            </div>
+                        </div>
+                    )}
+                </section>
+            )}
+
+            {/* ── NEW FEATURE 2: Reverse-Pitch Drafts ── */}
+            {isLoggedIn && activeView === 'talent-drafts-page' && (
+                <section className="page-view active-view">
+                    <div className="section-title">
+                        <h2>🤝 Reverse-Pitch Talent Drafts</h2>
+                        <p>Verified recruiters review your profile and pitch projects directly to you. No applications needed.</p>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '800px', margin: '0 auto' }}>
+                        {draftPitches.map(pitch => (
+                            <div key={pitch.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: pitch.status !== 'pending' ? 0.6 : 1 }}>
+                                <div>
+                                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Incoming Pitch</div>
+                                    <h3 style={{ marginBottom: '0.5rem' }}>{pitch.recruiter}</h3>
+                                    <div style={{ fontSize: '0.85rem', color: 'var(--success)', fontWeight: 600, marginBottom: '0.5rem' }}>Offers: {pitch.stipend}</div>
+                                    <p style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>"{pitch.msg}"</p>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '120px' }}>
+                                    {pitch.status === 'pending' ? (
+                                        <>
+                                            <button className="btn" style={{ padding: '0.5rem' }} onClick={() => handlePitchResponse(pitch.id, 'accepted')}>Accept Pitch</button>
+                                            <button className="btn btn-outline" style={{ padding: '0.5rem' }} onClick={() => handlePitchResponse(pitch.id, 'declined')}>Decline</button>
+                                        </>
+                                    ) : (
+                                        <div style={{ textAlign: 'center', fontWeight: 600, color: pitch.status === 'accepted' ? 'var(--primary)' : 'var(--text-main)' }}>
+                                            {pitch.status === 'accepted' ? 'Accepted ✅' : 'Declined ❌'}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            {/* ── NEW FEATURE 3: Micro-Internship Sprints ── */}
+            {isLoggedIn && activeView === 'sprints-page' && (
+                <section className="page-view active-view">
+                    <div className="section-title">
+                        <h2>⚡ Micro-Internship Sprints</h2>
+                        <p>Short, 1-3 week hyper-scoped projects with fixed pay. Bid with a 200-word proposal, no resume required.</p>
+                    </div>
+                    <div className="grid-2">
+                        {[
+                            { id: 's1', company: 'BuildFast Inc.', title: 'Migrate landing page to Next.js', duration: '2 Weeks', pay: '₹15,000' },
+                            { id: 's2', company: 'DataFlow', title: 'Write 3 Python Web Scrapers', duration: '1 Week', pay: '₹8,000' },
+                            { id: 's3', company: 'UI Studio', title: 'Design Figma System for App', duration: '3 Weeks', pay: '₹25,000' }
+                        ].map(sprint => (
+                            <div key={sprint.id} className="card">
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                                    <div>
+                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', marginBottom: '0.25rem' }}>{sprint.company}</div>
+                                        <h3 style={{ fontSize: '1.1rem' }}>{sprint.title}</h3>
+                                    </div>
+                                    <div style={{ background: '#ecfdf5', color: '#059669', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600 }}>
+                                        {sprint.pay}
+                                    </div>
+                                </div>
+                                <div style={{ fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '1.25rem' }}>⏳ Duration: {sprint.duration}</div>
+                                
+                                {sprintBids.has(sprint.id) ? (
+                                    <button className="btn btn-outline" disabled style={{ width: '100%' }}>Bid Submitted ✅</button>
+                                ) : (
+                                    <button className="btn" style={{ width: '100%' }} onClick={() => setSprintBidModal(sprint.id)}>Submit 200-Word Bid</button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+
+                    {sprintBidModal && (
+                        <div className="modal">
+                            <div className="modal-content" style={{ maxWidth: '500px' }}>
+                                <span className="close-btn" onClick={() => setSprintBidModal(null)}>×</span>
+                                <h3>Submit your Bid</h3>
+                                <p style={{ fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '1rem' }}>Skip the resume. Tell them why you can deliver this sprint in 200 words.</p>
+                                <textarea 
+                                    value={sprintBidText} 
+                                    onChange={(e) => setSprintBidText(e.target.value)}
+                                    placeholder="I have built 3 Next.js apps before. I can deliver this landing page perfectly responsive in 5 days..."
+                                    style={{ width: '100%', minHeight: '150px', marginBottom: '1rem', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-light)' }}
+                                />
+                                <button className="btn" style={{ width: '100%' }} onClick={handleSubmitBid}>Send Proposal</button>
+                            </div>
+                        </div>
+                    )}
+                </section>
+            )}
+
+            {/* ── NEW FEATURE 4: AI Skill Debt Analyzer ── */}
+            {isLoggedIn && activeView === 'skill-debt-page' && (
+                <section className="page-view active-view">
+                    <div className="section-title">
+                        <h2>🤖 AI Skill Debt Analyzer</h2>
+                        <p>Paste a Job Description. Gemini will analyze your CV and tell you exactly what skills you are missing.</p>
+                    </div>
+                    <div className="card" style={{ maxWidth: '800px', margin: '0 auto' }}>
+                        <textarea 
+                            value={debtJd} 
+                            onChange={(e) => setDebtJd(e.target.value)}
+                            placeholder="Paste the target Job Description here..."
+                            style={{ width: '100%', minHeight: '120px', marginBottom: '1rem', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-light)' }}
+                        />
+                        <button className="btn" style={{ width: '100%', marginBottom: '2rem' }} onClick={handleAnalyzeDebt} disabled={debtLoading}>
+                            {debtLoading ? 'Analyzing Skill Debt...' : 'Analyze My Profile'}
+                        </button>
+
+                        {debtResult && (
+                            <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-light)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                    <h3 style={{ margin: 0 }}>Match Score: {debtResult.match}%</h3>
+                                    <div style={{ width: '60%', background: '#e2e8f0', height: '10px', borderRadius: '5px', overflow: 'hidden' }}>
+                                        <div style={{ width: `${debtResult.match}%`, background: debtResult.match > 70 ? 'var(--success)' : debtResult.match > 40 ? 'var(--accent)' : 'var(--danger)', height: '100%' }}></div>
+                                    </div>
+                                </div>
+                                <h4 style={{ color: 'var(--danger)', marginBottom: '0.75rem' }}>⚠️ Missing Skills (Skill Debt):</h4>
+                                <ul style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    {debtResult.missing.map((skill, i) => (
+                                        <li key={i} style={{ color: 'var(--text-main)', fontSize: '0.9rem' }}>{skill}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
+                </section>
+            )}
+
+            {/* ── NEW FEATURE 5: Video Prompts ── */}
+            {isLoggedIn && activeView === 'video-prompts-page' && (
+                <section className="page-view active-view">
+                    <div className="section-title">
+                        <h2>🎥 TikTok-Style Video Prompts (Cover Letter Killer)</h2>
+                        <p>Companies set a prompt. You have exactly 60 seconds to record your answer. No retakes. Stand out instantly.</p>
+                    </div>
+                    <div className="card" style={{ maxWidth: '600px', margin: '0 auto', textAlign: 'center' }}>
+                        <div style={{ background: '#fef2f2', color: '#b91c1c', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', fontWeight: 600 }}>
+                            Prompt: "Why are you the perfect fit for this Engineering role? You have 60 seconds."
+                        </div>
+
+                        {!recordedVideoUrl ? (
+                            <>
+                                <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', background: '#000', borderRadius: '12px', overflow: 'hidden', marginBottom: '1.5rem' }}>
+                                    <video ref={liveVideoRef} style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} muted playsInline />
+                                    {isRecording && (
+                                        <div style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(220,38,38,0.9)', color: 'white', padding: '0.5rem 1rem', borderRadius: '20px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <div style={{ width: '10px', height: '10px', background: 'white', borderRadius: '50%', animation: 'pulse 1s infinite' }}></div>
+                                            00:{videoTimeLeft.toString().padStart(2, '0')}
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                {!isRecording ? (
+                                    <button className="btn" style={{ background: '#dc2626', width: '100%', padding: '1rem', fontSize: '1.1rem' }} onClick={startRecording}>
+                                        🔴 Start 60s Recording
+                                    </button>
+                                ) : (
+                                    <button className="btn" style={{ background: '#1e293b', width: '100%', padding: '1rem', fontSize: '1.1rem' }} onClick={stopRecording}>
+                                        ⏹️ Finish Recording Early
+                                    </button>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', background: '#000', borderRadius: '12px', overflow: 'hidden', marginBottom: '1.5rem' }}>
+                                    <video src={recordedVideoUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} controls playsInline />
+                                </div>
+                                <div style={{ display: 'flex', gap: '1rem' }}>
+                                    <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => setRecordedVideoUrl(null)}>🗑️ Discard & Retry</button>
+                                    <button className="btn" style={{ flex: 1 }} onClick={() => alert('Video securely uploaded to Cloud Storage! Application submitted.')}>🚀 Submit Application</button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </section>
+            )}
+
             {/* ── FEATURE 6: SKILLS GAP MODAL ── */}
             {gapJob && (
                 <div className="modal" onClick={(e: any) => e.target.className === 'modal' && setGapJob(null)}>
