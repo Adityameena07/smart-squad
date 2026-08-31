@@ -415,14 +415,15 @@ export default function Home() {
     }, []);
 
     // ── FEATURE 1: Dark Mode ──
-    const [isDark, setIsDark] = useState(true);
+    const [isDark, setIsDark] = useState(false);
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-        if (isDark) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
+        document.documentElement.style.setProperty('--bg-body', isDark ? '#0d1117' : '#f0f2ff');
+        document.documentElement.style.setProperty('--bg-card', isDark ? '#161b22' : '#ffffff');
+        document.documentElement.style.setProperty('--bg-card-hover', isDark ? '#1c2128' : '#fafbff');
+        document.documentElement.style.setProperty('--text-main', isDark ? '#8b949e' : '#475569');
+        document.documentElement.style.setProperty('--text-heading', isDark ? '#e6edf3' : '#0f172a');
+        document.documentElement.style.setProperty('--border-light', isDark ? '#30363d' : '#e2e8f0');
     }, [isDark]);
 
     // ── FEATURE 3: Bookmarks ──
@@ -1587,7 +1588,7 @@ export default function Home() {
                                     {surpriseJobs.map(item => {
                                         const m = calculatePrecisionMatch(candidateCV, item);
                                         return (
-                                            <div key={item.id} className="card" style={{ border: '2px solid #f59e0b' }}>
+                                            <div key={item.id} className="card" style={{ border: '2px solid #f59e0b', background: 'linear-gradient(135deg, #fffbeb, white)' }}>
                                                 <div>
                                                     <h3 style={{ fontSize: '1rem' }}>
                                                         🎲 {item.title}
@@ -1717,7 +1718,7 @@ export default function Home() {
                                                             <span key={s} className="tag" style={{ background: '#dcfce7', color: '#047857', borderColor: '#a7f3d0', fontSize: '0.72rem' }}>✓ {s}</span>
                                                         ))}
                                                         {matchData.missingSkills.map(s => (
-                                                            <span key={s} className="tag" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#b91c1c', borderColor: '#fecaca', fontSize: '0.72rem' }}>✕ {s}</span>
+                                                            <span key={s} className="tag" style={{ background: '#fef2f2', color: '#b91c1c', borderColor: '#fecaca', fontSize: '0.72rem' }}>✕ {s}</span>
                                                         ))}
                                                     </div>
                                                 <div className="btn-group">
@@ -1774,7 +1775,7 @@ export default function Home() {
                                 <p>Calculates precision suitability using CV credentials, project depth, CGPA verification, and branch constraints across all 1,008 openings.</p>
                             </div>
 
-                            <div className="card" style={{ border: '2px solid var(--primary-light)' }}>
+                            <div className="card" style={{ border: '2px solid #c7d2fe', background: 'linear-gradient(180deg, #ffffff 0%, #f5f3ff 100%)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                                     <div>
                                         <h3 style={{ margin: 0, border: 'none', padding: 0, color: 'var(--primary-dark)' }}>Neural Placement Predictor</h3>
@@ -2000,7 +2001,7 @@ export default function Home() {
                                 <p>Connect with verified college alumni for direct 1-on-1 mentorship, domain guidance, and fast-tracked hiring referrals to targeted companies.</p>
                             </div>
 
-                            <div className="card" style={{ marginBottom: '2.25rem', borderLeft: '4px solid var(--primary)' }}>
+                            <div className="card" style={{ marginBottom: '2.25rem', background: 'linear-gradient(to right, #ffffff, #f8fafc)', borderLeft: '4px solid var(--primary)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
                                     <div>
                                         <h3 style={{ border: 'none', padding: 0, marginBottom: '0.35rem', fontSize: '1.25rem' }}>Book a Branch Mock Sprint (Mentorship)</h3>
@@ -2081,7 +2082,7 @@ export default function Home() {
                                         <h3 style={{ fontSize: '1.15rem' }}>Referral Pipeline Tracker</h3>
                                         <p style={{ fontSize: '0.9rem', color: 'var(--text-main)', marginBottom: '1.25rem' }}>Track the real-time status of your internal alumni referral submissions.</p>
                                         
-                                        <div className="item-row" style={{ flexDirection: 'column', alignItems: 'stretch', border: '1.5px solid var(--border-light)', borderRadius: '12px', padding: '1.25rem', marginBottom: '1.25rem', background: 'rgba(255, 255, 255, 0.04)' }}>
+                                        <div className="item-row" style={{ flexDirection: 'column', alignItems: 'stretch', border: '1.5px solid var(--border-light)', borderRadius: '12px', padding: '1.25rem', marginBottom: '1.25rem', background: '#f8fafc' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                                                 <div style={{ fontWeight: 700, color: 'var(--text-heading)', fontSize: '1.05rem' }}>Amazon - <span style={{ fontWeight: 500 }}>SDE Intern</span></div>
                                                 <span className="badge pass">Referred</span>
@@ -2095,7 +2096,7 @@ export default function Home() {
                                             </div>
                                         </div>
 
-                                        <div className="item-row" style={{ flexDirection: 'column', alignItems: 'stretch', border: '1.5px solid var(--border-light)', borderRadius: '12px', padding: '1.25rem', background: 'rgba(255, 255, 255, 0.04)' }}>
+                                        <div className="item-row" style={{ flexDirection: 'column', alignItems: 'stretch', border: '1.5px solid var(--border-light)', borderRadius: '12px', padding: '1.25rem', background: '#f8fafc' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                                                 <div style={{ fontWeight: 700, color: 'var(--text-heading)', fontSize: '1.05rem' }}>Qualcomm - <span style={{ fontWeight: 500 }}>Embedded Trainee</span></div>
                                                 <span className="badge warn">Under Review</span>
@@ -2175,7 +2176,7 @@ export default function Home() {
                                     <div className="heat-cell heat-low">15% Drop</div>
                                     <div className="heat-cell heat-low">10% Drop</div>
                                 </div>
-                                <p style={{ fontSize: '0.88rem', color: 'var(--text-main)', background: 'rgba(255, 255, 255, 0.04)', padding: '0.9rem', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
+                                <p style={{ fontSize: '0.88rem', color: 'var(--text-main)', background: '#f8fafc', padding: '0.9rem', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
                                     <strong>College Support Action Plan:</strong> Analytics indicate 42% of ECE applicants are repeatedly rejected at the OA stage. The institution should organize a specialized &quot;Verilog Timing & Finite State Machines&quot; support bootcamp to address this specific drop-off.
                                 </p>
                             </div>
@@ -2195,7 +2196,7 @@ export default function Home() {
                                     </table>
                                 </div>
 
-                                <div className="card" style={{ background: 'rgba(255, 255, 255, 0.04)', border: '1.5px solid var(--border-light)' }}>
+                                <div className="card" style={{ background: '#f8fafc', border: '1.5px solid var(--border-light)' }}>
                                     <h3 style={{ color: 'var(--primary-dark)', fontSize: '1.15rem' }}>Automated Remedial Learning Path</h3>
                                     <p style={{ fontSize: '0.9rem', color: 'var(--text-main)', marginBottom: '1.25rem' }}>Custom remedial modules assigned to your profile based on your exact rejection points.</p>
                                     
@@ -2313,7 +2314,7 @@ export default function Home() {
                             const matchData = calculatePrecisionMatch(candidateCV, detailsModalJob);
                             return (
                                 <>
-                                    <div style={{ background: 'rgba(255, 255, 255, 0.04)', border: '1.5px solid var(--border-light)', padding: '1.25rem', borderRadius: '10px', marginBottom: '1.25rem' }}>
+                                    <div style={{ background: '#f8fafc', border: '1.5px solid var(--border-light)', padding: '1.25rem', borderRadius: '10px', marginBottom: '1.25rem' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
                                             <strong style={{ color: 'var(--text-heading)' }}>Overall CV & Branch Fit Score:</strong>
                                             <span className={`badge ${matchData.matchPercentage >= 75 ? 'pass' : 'warn'}`} style={{ fontSize: '0.95rem' }}>
@@ -2346,7 +2347,7 @@ export default function Home() {
                                                 <p style={{ fontSize: '0.85rem', color: 'var(--danger)', fontWeight: 600, marginBottom: '0.4rem' }}>Missing Prerequisites:</p>
                                                 <div className="tag-list">
                                                     {matchData.missingSkills.map(s => (
-                                                        <span key={s} className="tag" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#b91c1c', borderColor: '#fecaca' }}>
+                                                        <span key={s} className="tag" style={{ background: '#fef2f2', color: '#b91c1c', borderColor: '#fecaca' }}>
                                                             ✕ {s}
                                                         </span>
                                                     ))}
@@ -2681,14 +2682,14 @@ export default function Home() {
                                             </span>
                                         </div>
                                         {fraudResult.flags.length > 0 && (
-                                            <div className="card" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1.5px solid #fecaca', marginBottom: '1rem', padding: '1rem 1.25rem' }}>
+                                            <div className="card" style={{ background: '#fef2f2', border: '1.5px solid #fecaca', marginBottom: '1rem', padding: '1rem 1.25rem' }}>
                                                 <h4 style={{ color: '#b91c1c', marginBottom: '0.65rem', fontSize: '0.9rem' }}>🚩 Red Flags Detected</h4>
                                                 <ul style={{ paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                                                     {fraudResult.flags.map((f, i) => <li key={i} style={{ fontSize: '0.85rem', color: '#7f1d1d' }}>{f}</li>)}
                                                 </ul>
                                             </div>
                                         )}
-                                        <div className="card" style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1.5px solid #a7f3d0', padding: '1rem 1.25rem' }}>
+                                        <div className="card" style={{ background: '#f0fdf4', border: '1.5px solid #a7f3d0', padding: '1rem 1.25rem' }}>
                                             <h4 style={{ color: '#065f46', marginBottom: '0.65rem', fontSize: '0.9rem' }}>✅ Verification Tips</h4>
                                             <ul style={{ paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                                                 {fraudResult.tips.map((t, i) => <li key={i} style={{ fontSize: '0.85rem', color: '#064e3b' }}>{t}</li>)}
@@ -2865,7 +2866,7 @@ export default function Home() {
                         </button>
 
                         {debtResult && (
-                            <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-light)' }}>
+                            <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-light)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                                     <h3 style={{ margin: 0 }}>Match Score: {debtResult.match}%</h3>
                                     <div style={{ width: '60%', background: '#e2e8f0', height: '10px', borderRadius: '5px', overflow: 'hidden' }}>
@@ -2914,12 +2915,12 @@ export default function Home() {
                         <div className="card">
                             <h3 style={{ marginBottom: '1.5rem', fontSize: '1.4rem' }}>📊 Post-Interview Report</h3>
                             <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
-                                <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-light)', textAlign: 'center' }}>
+                                <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-light)', textAlign: 'center' }}>
                                     <div style={{ fontSize: '2.5rem', fontWeight: 800, color: evalResult.confidence_score > 75 ? 'var(--success)' : 'var(--accent)' }}>{evalResult.confidence_score}%</div>
                                     <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)' }}>Confidence & Pacing</div>
                                     <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--text-main)' }}>Gemini Audio Analysis</div>
                                 </div>
-                                <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-light)', textAlign: 'center' }}>
+                                <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-light)', textAlign: 'center' }}>
                                     <div style={{ fontSize: '2.5rem', fontWeight: 800, color: evalResult.content_accuracy_score > 75 ? 'var(--success)' : 'var(--danger)' }}>{evalResult.content_accuracy_score}%</div>
                                     <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)' }}>Factual Accuracy</div>
                                     <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--text-main)' }}>Errors detected: {evalResult.wrong_statements_detected.length}</div>
@@ -2932,7 +2933,7 @@ export default function Home() {
                             </div>
 
                             {evalResult.wrong_statements_detected.length > 0 && evalResult.wrong_statements_detected[0] !== 'None' && (
-                                <div style={{ marginBottom: '1.5rem', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', borderLeft: '4px solid #ef4444', borderRadius: '4px' }}>
+                                <div style={{ marginBottom: '1.5rem', padding: '1rem', background: '#fef2f2', borderLeft: '4px solid #ef4444', borderRadius: '4px' }}>
                                     <h4 style={{ color: '#b91c1c', marginBottom: '0.5rem' }}>⚠️ Factual Errors Detected</h4>
                                     <ul style={{ paddingLeft: '1.5rem' }}>
                                         {evalResult.wrong_statements_detected.map((err: string, i: number) => (
@@ -2951,7 +2952,7 @@ export default function Home() {
                         </div>
                     ) : (
                         <div className="card">
-                            <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', borderLeft: '4px solid var(--primary)' }}>
+                            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', borderLeft: '4px solid var(--primary)' }}>
                                 <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--primary)', marginBottom: '0.25rem' }}>AI INTERVIEWER</div>
                                 <div style={{ fontSize: '1.05rem', fontWeight: 600 }}>{currentAiQuestion}</div>
                             </div>
@@ -2981,7 +2982,7 @@ export default function Home() {
                         <p>Write Python code in your browser. Execution runs securely in a local Web Worker via Pyodide—costing zero backend compute.</p>
                     </div>
                     <div className="grid-2">
-                        <div className="card" style={{ background: 'rgba(255, 255, 255, 0.04)' }}>
+                        <div className="card" style={{ background: '#f8fafc' }}>
                             <h3 style={{ marginBottom: '1rem' }}>Problem: Reverse Array</h3>
                             <p style={{ color: 'var(--text-main)', marginBottom: '1rem' }}>Write a Python function <code>reverse_array(arr)</code> that takes a list of integers and returns it in reverse order.</p>
                             <p style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}><strong>Example:</strong><br/>Input: <code>[1, 2, 3]</code><br/>Output: <code>[3, 2, 1]</code></p>
@@ -3064,7 +3065,7 @@ export default function Home() {
                             <button className="btn btn-outline" style={{ width: '100%', padding: '1rem' }} onClick={() => setShowAnswer(true)}>Show Answer</button>
                         ) : (
                             <div style={{ animation: 'fadeIn 0.3s' }}>
-                                <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem', color: 'var(--primary)', fontWeight: 600, minHeight: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem', color: 'var(--primary)', fontWeight: 600, minHeight: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     {flashcards[currentCardIdx].a}
                                 </div>
                                 <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', marginBottom: '0.5rem' }}>How well did you know this?</div>
@@ -3125,7 +3126,7 @@ export default function Home() {
                                     <h3 style={{ marginBottom: '1rem', fontSize: '1.2rem', color: 'var(--text-main)' }}>Top Repositories</h3>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                                         {ghProfile.topRepos.map((repo: any, i: number) => (
-                                            <div key={i} style={{ padding: '1rem', border: '1px solid var(--border-light)', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.04)' }}>
+                                            <div key={i} style={{ padding: '1rem', border: '1px solid var(--border-light)', borderRadius: '8px', background: '#f8fafc' }}>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
                                                     <a href={repo.html_url} target="_blank" rel="noreferrer" style={{ fontWeight: 800, color: 'var(--primary)', textDecoration: 'none' }}>{repo.name}</a>
                                                     <span style={{ fontSize: '0.8rem', background: 'var(--bg-card)', padding: '0.1rem 0.5rem', borderRadius: '12px', border: '1px solid #e2e8f0', fontWeight: 600 }}>⭐ {repo.stargazers_count}</span>
