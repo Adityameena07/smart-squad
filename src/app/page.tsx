@@ -515,6 +515,26 @@ export default function Home() {
     const [eaPreferred, setEaPreferred] = useState('');
     const [eaResult, setEaResult] = useState<{value: number, cost: number} | null>(null);
 
+    // --- NEW: Remaining 4 AI Tools States ---
+    // 7. Hidden Market Explorer
+    const [hmIndustry, setHmIndustry] = useState('');
+    const [hmResult, setHmResult] = useState('');
+    const [hmLoading, setHmLoading] = useState(false);
+
+    // 8. Visa Hub
+    const [vhCountry, setVhCountry] = useState('USA');
+    const [vhResult, setVhResult] = useState('');
+    const [vhLoading, setVhLoading] = useState(false);
+
+    // 9. Hackathon Board
+    const [hbResult, setHbResult] = useState('');
+    const [hbLoading, setHbLoading] = useState(false);
+
+    // 10. Peer Mock Matcher
+    const [pmTopic, setPmTopic] = useState('Data Structures');
+    const [pmResult, setPmResult] = useState('');
+    const [pmLoading, setPmLoading] = useState(false);
+
     // ── FEATURE 9: Trending Skills ──
     const trendingSkills = useMemo(() => {
         const pool = branchFilter === 'all' ? allOpportunities : allOpportunities.filter(o => o.branch === branchFilter);
@@ -1115,6 +1135,42 @@ export default function Home() {
         const result = await fetchAIResponse(prompt);
         setScResult(result);
         setScLoading(false);
+    };
+    const handleHiddenMarket = async () => {
+        if (!hmIndustry) return alert("Please enter a target industry/domain.");
+        setHmLoading(true);
+        setHmResult('');
+        const prompt = `Act as an expert career strategist for Indian engineers. Generate a step-by-step actionable networking strategy to find unlisted "hidden" jobs in the ${hmIndustry} sector. Take into account my profile (Branch: ${candidateCV.branchName}, Skills: ${candidateCV.skills.join(', ')}). Limit to 200 words.`;
+        const result = await fetchAIResponse(prompt);
+        setHmResult(result);
+        setHmLoading(false);
+    };
+
+    const handleVisaHub = async () => {
+        setVhLoading(true);
+        setVhResult('');
+        const prompt = `As a global immigration advisor for Indian engineers, what is the likelihood of getting a work visa sponsorship in ${vhCountry} right now for someone with my profile (Branch: ${candidateCV.branchName}, Skills: ${candidateCV.skills.join(', ')})? What are the standard visa routes (e.g. H1B, Blue Card) and name 3 companies known to sponsor freshers/juniors. Be concise.`;
+        const result = await fetchAIResponse(prompt);
+        setVhResult(result);
+        setVhLoading(false);
+    };
+
+    const handleHackathonBoard = async () => {
+        setHbLoading(true);
+        setHbResult('');
+        const prompt = `Based on my skills (${candidateCV.skills.join(', ')}), suggest 3 unique, resume-boosting weekend project ideas or hypothetical hackathon projects I can build to impress recruiters. For each, give a catchy title and a 1-sentence tech stack/description. Output nicely formatted markdown.`;
+        const result = await fetchAIResponse(prompt);
+        setHbResult(result);
+        setHbLoading(false);
+    };
+
+    const handlePeerMock = async () => {
+        setPmLoading(true);
+        setPmResult('');
+        const prompt = `You are a strict technical interviewer. I am preparing for a mock interview on the topic of "${pmTopic}". Ask me ONE challenging interview question relevant to this topic for a ${candidateCV.branchName} student, and provide a brief rubric of what you are looking for in a strong answer.`;
+        const result = await fetchAIResponse(prompt);
+        setPmResult(result);
+        setPmLoading(false);
     };
 
     return (
@@ -2532,21 +2588,18 @@ export default function Home() {
                 <section className="page-view active-view">
                     <div className="section-title">
                         <h2>🕵️ Hidden Market Explorer</h2>
-                        <p>Aggregated opportunities from exclusive Discord servers, Telegram groups, and Twitter hashtags.</p>
+                        <p>Generate a step-by-step actionable networking strategy to find unlisted "hidden" jobs.</p>
                     </div>
-                    <div className="grid-2">
-                        {[
-                            { source: 'Discord (cs-majors)', title: 'Stripe Early Career 2026', link: '#' },
-                            { source: 'Telegram (Off-campus India)', title: 'Amazon SDE1 Hiring Drive', link: '#' },
-                            { source: 'Twitter (#techhiring)', title: 'Notion is looking for product interns!', link: '#' },
-                            { source: 'Discord (ReactIndia)', title: 'Frontend Dev at stealth startup', link: '#' }
-                        ].map((j, i) => (
-                            <div key={i} className="card" style={{ borderLeft: '4px solid var(--primary)' }}>
-                                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--primary)', marginBottom: '0.25rem', textTransform: 'uppercase' }}>{j.source}</div>
-                                <h3 style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>{j.title}</h3>
-                                <button className="btn btn-outline" style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}>View Source Post</button>
+                    <div className="card" style={{ maxWidth: '800px', margin: '0 auto' }}>
+                        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.25rem' }}>
+                            <input type="text" value={hmIndustry} onChange={(e) => setHmIndustry(e.target.value)} placeholder="Target Industry (e.g. Fintech in Bangalore)" style={{ flex: 1 }} />
+                            <button className="btn" onClick={handleHiddenMarket} disabled={hmLoading}>{hmLoading ? 'Generating...' : 'Strategize'}</button>
+                        </div>
+                        {hmResult && (
+                            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', whiteSpace: 'pre-wrap', border: '1px solid var(--border-light)', fontSize: '0.9rem' }}>
+                                {hmResult}
                             </div>
-                        ))}
+                        )}
                     </div>
                 </section>
             )}
@@ -2638,22 +2691,24 @@ export default function Home() {
                 <section className="page-view active-view">
                     <div className="section-title">
                         <h2>🌐 Visa & Sponsorship Hub</h2>
-                        <p>Curated list of international roles and companies known for sponsoring visas (H1B, Tier 2, etc).</p>
+                        <p>Get a realistic assessment of visa sponsorship likelihood and alternative visa routes for your profile.</p>
                     </div>
-                    <div className="grid-3">
-                        {[
-                            { country: '🇺🇸 USA', company: 'Meta', roles: 'Software Engineer', visa: 'H1B / L1' },
-                            { country: '🇬🇧 UK', company: 'Palantir', roles: 'Forward Deployed Eng', visa: 'Tier 2 General' },
-                            { country: '🇩🇪 Germany', company: 'Zalando', roles: 'Backend / Data', visa: 'EU Blue Card' },
-                            { country: '🇨🇦 Canada', company: 'Shopify', roles: 'Full Stack', visa: 'Global Talent Stream' }
-                        ].map((v, i) => (
-                            <div key={i} className="card">
-                                <h3 style={{ fontSize: '1.1rem', marginBottom: '0.25rem' }}>{v.company}</h3>
-                                <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', marginBottom: '1rem' }}>{v.country}</div>
-                                <div style={{ fontSize: '0.85rem', marginBottom: '0.5rem' }}><strong>Roles:</strong> {v.roles}</div>
-                                <span className="badge pass">{v.visa}</span>
+                    <div className="card" style={{ maxWidth: '800px', margin: '0 auto' }}>
+                        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.25rem' }}>
+                            <select value={vhCountry} onChange={(e) => setVhCountry(e.target.value)} style={{ flex: 1 }}>
+                                <option value="USA">USA (H1B / L1 / O1)</option>
+                                <option value="UK">United Kingdom (Tier 2 / HPI)</option>
+                                <option value="Germany">Germany (EU Blue Card)</option>
+                                <option value="Canada">Canada (Global Talent Stream)</option>
+                                <option value="Australia">Australia (TSS / 189 / 190)</option>
+                            </select>
+                            <button className="btn" onClick={handleVisaHub} disabled={vhLoading}>{vhLoading ? 'Analyzing...' : 'Assess Chances'}</button>
+                        </div>
+                        {vhResult && (
+                            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', whiteSpace: 'pre-wrap', border: '1px solid var(--border-light)', fontSize: '0.9rem' }}>
+                                {vhResult}
                             </div>
-                        ))}
+                        )}
                     </div>
                 </section>
             )}
@@ -2661,36 +2716,17 @@ export default function Home() {
             {isLoggedIn && activeView === 'hackathon-board-page' && (
                 <section className="page-view active-view">
                     <div className="section-title">
-                        <h2>🚀 Open Source & Hackathon Board</h2>
-                        <p>Build your CV by participating in live hackathons and contributing to beginner-friendly open-source issues.</p>
+                        <h2>🚀 Hackathon & Project Ideator</h2>
+                        <p>Get AI-generated weekend project ideas tailored to your exact skills to boost your resume.</p>
                     </div>
-                    <div className="grid-2">
-                        <div className="card">
-                            <h3 style={{ borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>Upcoming Hackathons</h3>
-                            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                <li style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px' }}>
-                                    <strong>Global AI Hackathon 2026</strong><br/>
-                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-main)' }}>Starts in 2 days • $50k Prize Pool</span>
-                                </li>
-                                <li style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px' }}>
-                                    <strong>Web3 Buildathon</strong><br/>
-                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-main)' }}>Starts next week • Remote</span>
-                                </li>
-                            </ul>
-                        </div>
-                        <div className="card">
-                            <h3 style={{ borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>Good First Issues (GitHub)</h3>
-                            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                <li style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px' }}>
-                                    <strong>react/react</strong>: Fix hydration mismatch warning<br/>
-                                    <span style={{ fontSize: '0.8rem', color: 'var(--accent)', fontWeight: 600 }}>#45821 • React</span>
-                                </li>
-                                <li style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px' }}>
-                                    <strong>vercel/next.js</strong>: Update docs for edge runtime<br/>
-                                    <span style={{ fontSize: '0.8rem', color: 'var(--accent)', fontWeight: 600 }}>#10234 • Documentation</span>
-                                </li>
-                            </ul>
-                        </div>
+                    <div className="card" style={{ maxWidth: '800px', margin: '0 auto', textAlign: 'center' }}>
+                        <p style={{ marginBottom: '1.5rem', color: 'var(--text-main)' }}>Your current skills: <strong>{candidateCV.skills.join(', ')}</strong></p>
+                        <button className="btn" onClick={handleHackathonBoard} disabled={hbLoading} style={{ marginBottom: '1.5rem' }}>{hbLoading ? 'Ideating...' : 'Generate 3 Project Ideas'}</button>
+                        {hbResult && (
+                            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', whiteSpace: 'pre-wrap', border: '1px solid var(--border-light)', fontSize: '0.9rem', textAlign: 'left' }}>
+                                {hbResult}
+                            </div>
+                        )}
                     </div>
                 </section>
             )}
@@ -2698,14 +2734,26 @@ export default function Home() {
             {isLoggedIn && activeView === 'peer-interview-page' && (
                 <section className="page-view active-view">
                     <div className="section-title">
-                        <h2>👥 Peer Mock Interview Matcher</h2>
-                        <p>Match with students from other colleges to practice live Data Structures & Algorithms interviews.</p>
+                        <h2>👥 AI Mock Interview Simulator</h2>
+                        <p>Practice for your technical rounds by answering challenging questions graded by the AI.</p>
                     </div>
-                    <div className="card" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-                        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎯</div>
-                        <h3 style={{ marginBottom: '0.5rem' }}>Ready to practice?</h3>
-                        <p style={{ color: 'var(--text-main)', marginBottom: '1.5rem', maxWidth: '400px', marginInline: 'auto' }}>We will match you with a peer who has a similar LeetCode rating for a 45-minute live mock interview.</p>
-                        <button className="btn" style={{ fontSize: '1.1rem', padding: '0.75rem 2rem' }} onClick={(e) => { e.currentTarget.innerHTML = 'Searching for peers...'; setTimeout(() => { e.currentTarget.innerHTML = 'Find a Peer Match'; alert('Match found! You are paired with Rahul from NIT Warangal. Check your email for the Google Meet link.'); }, 2000); }}>Find a Peer Match</button>
+                    <div className="card" style={{ maxWidth: '800px', margin: '0 auto' }}>
+                        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.25rem' }}>
+                            <select value={pmTopic} onChange={(e) => setPmTopic(e.target.value)} style={{ flex: 1 }}>
+                                <option value="Data Structures & Algorithms">Data Structures & Algorithms</option>
+                                <option value="System Design">System Design</option>
+                                <option value="Object Oriented Programming">Object Oriented Programming</option>
+                                <option value="Database Management (SQL/NoSQL)">Database Management</option>
+                                <option value="Core CS Fundamentals (OS/CN)">Core CS Fundamentals</option>
+                            </select>
+                            <button className="btn" onClick={handlePeerMock} disabled={pmLoading}>{pmLoading ? 'Generating Question...' : 'Start Mock'}</button>
+                        </div>
+                        {pmResult && (
+                            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', whiteSpace: 'pre-wrap', border: '1px solid var(--border-light)', fontSize: '0.9rem' }}>
+                                <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Your Interview Question:</h3>
+                                {pmResult}
+                            </div>
+                        )}
                     </div>
                 </section>
             )}
