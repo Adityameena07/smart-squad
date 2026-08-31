@@ -721,10 +721,30 @@ export default function Home() {
 
     // ── NEW EXTENSION 5: Campus Stipend Heatmap ──
     const [heatmapPins, setHeatmapPins] = useState<{lat: number, lng: number, status: string, stipend: string}[]>([
+        // Bengaluru
         { lat: 12.9716, lng: 77.5946, status: 'hired', stipend: '₹50k/mo' },
         { lat: 12.9352, lng: 77.6245, status: 'ghosted', stipend: 'Unknown' },
         { lat: 12.9569, lng: 77.7011, status: 'interviewed', stipend: '₹30k/mo' },
-        { lat: 13.0, lng: 77.6, status: 'hired', stipend: '₹80k/mo' }
+        { lat: 13.0, lng: 77.6, status: 'hired', stipend: '₹80k/mo' },
+        // Mumbai / Pune
+        { lat: 19.0760, lng: 72.8777, status: 'interviewed', stipend: '₹45k/mo' },
+        { lat: 19.1136, lng: 72.8697, status: 'hired', stipend: '₹1.1L/mo' },
+        { lat: 18.5204, lng: 73.8567, status: 'hired', stipend: '₹40k/mo' },
+        { lat: 18.5590, lng: 73.7868, status: 'ghosted', stipend: 'Unknown' },
+        // Delhi NCR (Gurgaon/Noida)
+        { lat: 28.6139, lng: 77.2090, status: 'ghosted', stipend: 'Unknown' },
+        { lat: 28.4595, lng: 77.0266, status: 'hired', stipend: '₹60k/mo' },
+        { lat: 28.5355, lng: 77.3910, status: 'interviewed', stipend: '₹25k/mo' },
+        // Hyderabad
+        { lat: 17.3850, lng: 78.4867, status: 'hired', stipend: '₹75k/mo' },
+        { lat: 17.4401, lng: 78.3489, status: 'hired', stipend: '₹95k/mo' },
+        { lat: 17.4435, lng: 78.3772, status: 'ghosted', stipend: 'Unknown' },
+        // Chennai
+        { lat: 13.0827, lng: 80.2707, status: 'interviewed', stipend: '₹35k/mo' },
+        { lat: 12.9822, lng: 80.2232, status: 'hired', stipend: '₹65k/mo' },
+        // Kolkata / Ahmedabad
+        { lat: 22.5726, lng: 88.3639, status: 'ghosted', stipend: 'Unknown' },
+        { lat: 23.0225, lng: 72.5714, status: 'hired', stipend: '₹30k/mo' },
     ]);
 
     useEffect(() => {
@@ -754,7 +774,8 @@ export default function Home() {
     const initMap = useCallback((node: HTMLDivElement | null) => {
         if (node && (window as any).L && !node.innerHTML) {
             const L = (window as any).L;
-            const map = L.map(node).setView([12.9716, 77.5946], 11);
+            // Set view to center of India, zoom level 5 to show all major IT hubs
+            const map = L.map(node).setView([20.5937, 78.9629], 5);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
 
             heatmapPins.forEach(pin => {
