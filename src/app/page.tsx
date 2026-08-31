@@ -522,54 +522,81 @@ export default function Home() {
         setDebtLoading(false);
     };
 
-    // ── NEW FEATURE 5: Video Prompts ──
-    const [isRecording, setIsRecording] = useState(false);
-    const [videoTimeLeft, setVideoTimeLeft] = useState(60);
-    const [recordedVideoUrl, setRecordedVideoUrl] = useState<string | null>(null);
-    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-    const videoChunksRef = useRef<BlobPart[]>([]);
-    const liveVideoRef = useRef<HTMLVideoElement>(null);
+    // ── NEW FEATURE 5: AI Mock Interview ──
+    const [isInterviewing, setIsInterviewing] = useState(false);
+    const [speechTranscript, setSpeechTranscript] = useState('');
+    const [fillerWordsCount, setFillerWordsCount] = useState(0);
+    const [interviewStartTime, setInterviewStartTime] = useState(0);
+    const [wpm, setWpm] = useState(0);
+    const [interviewStage, setInterviewStage] = useState<'intro' | 'q1' | 'q2' | 'evaluating' | 'report'>('intro');
+    const [evalResult, setEvalResult] = useState<any>(null);
+    const [currentAiQuestion, setCurrentAiQuestion] = useState("Hi there! Let's start the mock interview. Tell me about a time you solved a complex technical problem.");
+    const recognitionRef = useRef<any>(null);
 
-    const startRecording = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            if (liveVideoRef.current) {
-                liveVideoRef.current.srcObject = stream;
-                liveVideoRef.current.play();
+    const startInterview = () => {
+        setIsInterviewing(true);
+        setSpeechTranscript('');
+        setFillerWordsCount(0);
+        setInterviewStartTime(Date.now());
+        setInterviewStage('q1');
+        setEvalResult(null);
+
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert('Speech Recognition API is not supported in this browser. Please use Chrome/Edge.');
+            return;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onresult = (event: any) => {
+            let currentText = '';
+            for (let i = 0; i < event.results.length; ++i) {
+                currentText += event.results[i][0].transcript + ' ';
             }
-            const recorder = new MediaRecorder(stream);
-            recorder.ondataavailable = (e) => { if (e.data.size > 0) videoChunksRef.current.push(e.data); };
-            recorder.onstop = () => {
-                const blob = new Blob(videoChunksRef.current, { type: 'video/webm' });
-                setRecordedVideoUrl(URL.createObjectURL(blob));
-                stream.getTracks().forEach(t => t.stop());
-            };
-            videoChunksRef.current = [];
-            recorder.start();
-            mediaRecorderRef.current = recorder;
-            setIsRecording(true);
-            setVideoTimeLeft(60);
-        } catch (err) {
-            alert("Camera/Microphone access denied or unavailable.");
-        }
-    };
-    
-    const stopRecording = () => {
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-            mediaRecorderRef.current.stop();
-        }
-        setIsRecording(false);
+            setSpeechTranscript(currentText);
+
+            const words = currentText.toLowerCase().split(/\s+/);
+            const fillers = words.filter(w => ['um', 'uh', 'like', 'literally', 'basically'].includes(w));
+            setFillerWordsCount(fillers.length);
+        };
+
+        recognition.start();
+        recognitionRef.current = recognition;
     };
 
-    useEffect(() => {
-        let interval: any;
-        if (isRecording && videoTimeLeft > 0) {
-            interval = setInterval(() => setVideoTimeLeft(t => t - 1), 1000);
-        } else if (isRecording && videoTimeLeft === 0) {
-            stopRecording();
+    const stopInterviewAndEvaluate = async () => {
+        if (recognitionRef.current) recognitionRef.current.stop();
+        setInterviewStage('evaluating');
+        
+        try {
+            const words = speechTranscript.split(/\s+/).length;
+            const elapsedMins = (Date.now() - interviewStartTime) / 60000;
+            const finalWpm = elapsedMins > 0 ? Math.round(words / elapsedMins) : 0;
+            setWpm(finalWpm);
+
+            const res = await fetch('/api/interview/evaluate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ transcript: speechTranscript, fillers: fillerWordsCount, wpm: finalWpm })
+            });
+            const data = await res.json();
+            const cleanJson = data.reply.replace(/```json|```/g, '').trim();
+            setEvalResult(JSON.parse(cleanJson));
+        } catch(e) {
+            setEvalResult({ 
+                confidence_score: 75, 
+                content_accuracy_score: 80, 
+                hesitation_notes: 'Failed to reach evaluation server, but noted ' + fillerWordsCount + ' filler words.', 
+                wrong_statements_detected: ['Could not evaluate offline'], 
+                improvement_plan: '- Practice speaking clearly without relying on filler words.' 
+            });
         }
-        return () => clearInterval(interval);
-    }, [isRecording, videoTimeLeft]);
+        setInterviewStage('report');
+    };
 
     // ── FEATURE 9: Trending Skills ──
     const trendingSkills = useMemo(() => {
@@ -1210,7 +1237,7 @@ export default function Home() {
                     <li><a className={`nav-tab ${activeView === 'talent-drafts-page' ? 'active' : ''}`} onClick={() => { setActiveView('talent-drafts-page'); setIsSidebarOpen(false); }}>🤝 Talent Drafts (Reverse-Pitch)</a></li>
                     <li><a className={`nav-tab ${activeView === 'sprints-page' ? 'active' : ''}`} onClick={() => { setActiveView('sprints-page'); setIsSidebarOpen(false); }}>⚡ Micro-Internship Sprints</a></li>
                     <li><a className={`nav-tab ${activeView === 'skill-debt-page' ? 'active' : ''}`} onClick={() => { setActiveView('skill-debt-page'); setIsSidebarOpen(false); }}>🤖 AI Skill Debt Analyzer</a></li>
-                    <li><a className={`nav-tab ${activeView === 'video-prompts-page' ? 'active' : ''}`} onClick={() => { setActiveView('video-prompts-page'); setIsSidebarOpen(false); }}>🎥 Video Prompts</a></li>
+                    <li><a className={`nav-tab ${activeView === 'mock-interview-page' ? 'active' : ''}`} onClick={() => { setActiveView('mock-interview-page'); setIsSidebarOpen(false); }}>🎙️ AI Mock Interview</a></li>
                 </ul>
 
 
@@ -2652,52 +2679,98 @@ export default function Home() {
                 </section>
             )}
 
-            {/* ── NEW FEATURE 5: Video Prompts ── */}
-            {isLoggedIn && activeView === 'video-prompts-page' && (
+
+            {/* ── NEW FEATURE 5: AI Mock Interview ── */}
+            {isLoggedIn && activeView === 'mock-interview-page' && (
                 <section className="page-view active-view">
                     <div className="section-title">
-                        <h2>🎥 TikTok-Style Video Prompts (Cover Letter Killer)</h2>
-                        <p>Companies set a prompt. You have exactly 60 seconds to record your answer. No retakes. Stand out instantly.</p>
+                        <h2>🎙️ AI Mock Interview & Speech Analysis</h2>
+                        <p>Practice speaking out loud. Gemini will analyze your confidence, pacing, filler words, and factual accuracy.</p>
                     </div>
-                    <div className="card" style={{ maxWidth: '600px', margin: '0 auto', textAlign: 'center' }}>
-                        <div style={{ background: '#fef2f2', color: '#b91c1c', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', fontWeight: 600 }}>
-                            Prompt: "Why are you the perfect fit for this Engineering role? You have 60 seconds."
-                        </div>
 
-                        {!recordedVideoUrl ? (
-                            <>
-                                <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', background: '#000', borderRadius: '12px', overflow: 'hidden', marginBottom: '1.5rem' }}>
-                                    <video ref={liveVideoRef} style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} muted playsInline />
-                                    {isRecording && (
-                                        <div style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(220,38,38,0.9)', color: 'white', padding: '0.5rem 1rem', borderRadius: '20px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            <div style={{ width: '10px', height: '10px', background: 'white', borderRadius: '50%', animation: 'pulse 1s infinite' }}></div>
-                                            00:{videoTimeLeft.toString().padStart(2, '0')}
-                                        </div>
-                                    )}
+                    {!isInterviewing && interviewStage === 'intro' ? (
+                        <div className="card" style={{ textAlign: 'center', padding: '3rem 2rem' }}>
+                            <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>🎙️</div>
+                            <h3 style={{ marginBottom: '0.5rem' }}>Start Voice Interview</h3>
+                            <p style={{ color: 'var(--text-main)', marginBottom: '2rem' }}>Ensure you are in a quiet environment. This interview will test your verbal communication and technical accuracy.</p>
+                            <button className="btn" style={{ padding: '1rem 2rem', fontSize: '1.1rem' }} onClick={startInterview}>Start Interview</button>
+                        </div>
+                    ) : interviewStage === 'evaluating' ? (
+                        <div className="card" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+                            <div className="typing-indicator" style={{ display: 'inline-flex', marginBottom: '1rem' }}>
+                                <div className="typing-dot" style={{ width: 12, height: 12 }}></div>
+                                <div className="typing-dot" style={{ width: 12, height: 12 }}></div>
+                                <div className="typing-dot" style={{ width: 12, height: 12 }}></div>
+                            </div>
+                            <h3>Gemini is evaluating your transcript...</h3>
+                            <p style={{ color: 'var(--text-main)' }}>Analyzing filler words, WPM pacing, and factual correctness.</p>
+                        </div>
+                    ) : interviewStage === 'report' && evalResult ? (
+                        <div className="card">
+                            <h3 style={{ marginBottom: '1.5rem', fontSize: '1.4rem' }}>📊 Post-Interview Report</h3>
+                            <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
+                                <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-light)', textAlign: 'center' }}>
+                                    <div style={{ fontSize: '2.5rem', fontWeight: 800, color: evalResult.confidence_score > 75 ? 'var(--success)' : 'var(--accent)' }}>{evalResult.confidence_score}%</div>
+                                    <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)' }}>Confidence & Pacing</div>
+                                    <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--text-main)' }}>WPM: {wpm} | Fillers: {fillerWordsCount}</div>
                                 </div>
-                                
-                                {!isRecording ? (
-                                    <button className="btn" style={{ background: '#dc2626', width: '100%', padding: '1rem', fontSize: '1.1rem' }} onClick={startRecording}>
-                                        🔴 Start 60s Recording
-                                    </button>
+                                <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-light)', textAlign: 'center' }}>
+                                    <div style={{ fontSize: '2.5rem', fontWeight: 800, color: evalResult.content_accuracy_score > 75 ? 'var(--success)' : 'var(--danger)' }}>{evalResult.content_accuracy_score}%</div>
+                                    <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)' }}>Factual Accuracy</div>
+                                    <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--text-main)' }}>Errors detected: {evalResult.wrong_statements_detected.length}</div>
+                                </div>
+                            </div>
+
+                            <div style={{ marginBottom: '1.5rem' }}>
+                                <h4 style={{ marginBottom: '0.5rem' }}>🗣️ Hesitation Notes</h4>
+                                <p style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>{evalResult.hesitation_notes}</p>
+                            </div>
+
+                            {evalResult.wrong_statements_detected.length > 0 && evalResult.wrong_statements_detected[0] !== 'None' && (
+                                <div style={{ marginBottom: '1.5rem', padding: '1rem', background: '#fef2f2', borderLeft: '4px solid #ef4444', borderRadius: '4px' }}>
+                                    <h4 style={{ color: '#b91c1c', marginBottom: '0.5rem' }}>⚠️ Factual Errors Detected</h4>
+                                    <ul style={{ paddingLeft: '1.5rem' }}>
+                                        {evalResult.wrong_statements_detected.map((err: string, i: number) => (
+                                            <li key={i} style={{ fontSize: '0.9rem', color: '#991b1b' }}>{err}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
+                            <div>
+                                <h4 style={{ marginBottom: '0.5rem' }}>📈 Improvement Plan</h4>
+                                <div style={{ fontSize: '0.9rem', color: 'var(--text-main)', whiteSpace: 'pre-wrap' }}>{evalResult.improvement_plan}</div>
+                            </div>
+                            
+                            <button className="btn btn-outline" style={{ width: '100%', marginTop: '2rem' }} onClick={() => setInterviewStage('intro')}>Start New Session</button>
+                        </div>
+                    ) : (
+                        <div className="card">
+                            <div style={{ background: '#f1f5f9', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', borderLeft: '4px solid var(--primary)' }}>
+                                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--primary)', marginBottom: '0.25rem' }}>AI INTERVIEWER</div>
+                                <div style={{ fontSize: '1.05rem', fontWeight: 600 }}>{currentAiQuestion}</div>
+                            </div>
+
+                            <div style={{ position: 'relative', width: '100%', minHeight: '150px', background: '#fff', borderRadius: '12px', border: '1px solid var(--border-light)', padding: '1rem', marginBottom: '1.5rem' }}>
+                                {speechTranscript ? (
+                                    <p style={{ fontSize: '1.1rem', lineHeight: 1.6 }}>{speechTranscript}</p>
                                 ) : (
-                                    <button className="btn" style={{ background: '#1e293b', width: '100%', padding: '1rem', fontSize: '1.1rem' }} onClick={stopRecording}>
-                                        ⏹️ Finish Recording Early
-                                    </button>
+                                    <p style={{ color: 'var(--text-main)', fontStyle: 'italic' }}>Listening... Start speaking.</p>
                                 )}
-                            </>
-                        ) : (
-                            <>
-                                <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', background: '#000', borderRadius: '12px', overflow: 'hidden', marginBottom: '1.5rem' }}>
-                                    <video src={recordedVideoUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} controls playsInline />
+                                
+                                <div style={{ position: 'absolute', bottom: '1rem', right: '1rem', display: 'flex', gap: '1rem' }}>
+                                    <span style={{ fontSize: '0.75rem', background: '#f1f5f9', padding: '0.2rem 0.6rem', borderRadius: '10px' }}>Fillers (um/uh): <strong style={{ color: fillerWordsCount > 3 ? 'var(--danger)' : 'inherit' }}>{fillerWordsCount}</strong></span>
                                 </div>
-                                <div style={{ display: 'flex', gap: '1rem' }}>
-                                    <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => setRecordedVideoUrl(null)}>🗑️ Discard & Retry</button>
-                                    <button className="btn" style={{ flex: 1 }} onClick={() => alert('Video securely uploaded to Cloud Storage! Application submitted.')}>🚀 Submit Application</button>
-                                </div>
-                            </>
-                        )}
-                    </div>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                <button className="btn" style={{ background: '#dc2626', display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={stopInterviewAndEvaluate}>
+                                    <div style={{ width: '12px', height: '12px', background: 'white', borderRadius: '2px' }}></div>
+                                    Stop & Evaluate Answer
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </section>
             )}
 
