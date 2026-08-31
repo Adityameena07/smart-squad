@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 
 // All 12 Engineering Branches Mapped
 const branchNamesMap: Record<string, string> = {
@@ -355,7 +355,10 @@ export default function Home() {
     });
 
     // Active Navigation Page View
-    const [activeView, setActiveView] = useState<'jobs-page' | 'ai-page' | 'profile-page' | 'portals-page' | 'alumni-page' | 'rejection-page'>('jobs-page');
+    const [activeView, setActiveView] = useState<string>('jobs-page');
+    // Sidebar mobile toggle
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const toggleSidebar = () => setIsSidebarOpen(o => !o);
 
     // Feed Filters & Search
     const [searchQuery, setSearchQuery] = useState("");
@@ -395,6 +398,280 @@ export default function Home() {
             chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
         }
     }, [chatMessages]);
+
+    // Restore Session
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const storedUser = localStorage.getItem('smartSquadUser');
+            if (storedUser) {
+                setAuthUser(JSON.parse(storedUser));
+                setIsLoggedIn(true);
+            }
+            const storedCV = localStorage.getItem('smartSquadCV');
+            if (storedCV) {
+                setCandidateCV(JSON.parse(storedCV));
+            }
+        }
+    }, []);
+
+    // ── FEATURE 1: Dark Mode ──
+    const [isDark, setIsDark] = useState(false);
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+        document.documentElement.style.setProperty('--bg-body', isDark ? '#0d1117' : '#f0f2ff');
+        document.documentElement.style.setProperty('--bg-card', isDark ? '#161b22' : '#ffffff');
+        document.documentElement.style.setProperty('--bg-card-hover', isDark ? '#1c2128' : '#fafbff');
+        document.documentElement.style.setProperty('--text-main', isDark ? '#8b949e' : '#475569');
+        document.documentElement.style.setProperty('--text-heading', isDark ? '#e6edf3' : '#0f172a');
+        document.documentElement.style.setProperty('--border-light', isDark ? '#30363d' : '#e2e8f0');
+    }, [isDark]);
+
+    // ── FEATURE 3: Bookmarks ──
+    const [bookmarks, setBookmarks] = useState<Set<number>>(new Set());
+    const toggleBookmark = useCallback((id: number) => {
+        setBookmarks(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
+    }, []);
+    const savedJobs = useMemo(() => allOpportunities.filter(o => bookmarks.has(o.id)), [bookmarks]);
+
+
+
+    // ── FEATURE 5: Salary Predictor ──
+    const [salaryBranch, setSalaryBranch] = useState(candidateCV.branch);
+    const [salaryCGPA, setSalaryCGPA] = useState(candidateCV.cgpa);
+    const [salarySkills, setSalarySkills] = useState(candidateCV.skills.length);
+    const [salaryCity, setSalaryCity] = useState('metro');
+    const [salaryResult, setSalaryResult] = useState<{ min: number; max: number; avg: number } | null>(null);
+    const runSalaryPredictor = () => {
+        const base: Record<string, number> = {
+            'ai-ds': 900000, 'cse': 850000, 'it': 700000, 'ece': 650000,
+            'eee': 580000, 'mech': 560000, 'civil': 520000, 'chem': 580000,
+            'aero': 640000, 'robotics': 750000, 'biotech': 540000, 'metallurgy': 510000
+        };
+        const b = base[salaryBranch] || 600000;
+        const cgpaMultiplier = salaryCGPA >= 9 ? 1.4 : salaryCGPA >= 8 ? 1.25 : salaryCGPA >= 7 ? 1.1 : 1.0;
+        const skillMultiplier = 1 + Math.min(0.5, salarySkills * 0.04);
+        const cityMultiplier = salaryCity === 'metro' ? 1.15 : salaryCity === 'tier2' ? 1.0 : 0.85;
+        const avg = Math.round(b * cgpaMultiplier * skillMultiplier * cityMultiplier / 100000) * 100000;
+        setSalaryResult({ min: Math.round(avg * 0.7), max: Math.round(avg * 1.4), avg });
+    };
+
+    // ── FEATURE 6: Skills Gap Analyzer ──
+    const [gapJob, setGapJob] = useState<Opportunity | null>(null);
+
+    // ── Fraud Detector State ──
+    const [fraudText, setFraudText] = useState('');
+    const [fraudMode, setFraudMode] = useState<'paste' | 'manual'>('paste');
+    const [fraudCompany, setFraudCompany] = useState('');
+    const [fraudSalary, setFraudSalary] = useState('');
+    const [fraudRole, setFraudRole] = useState('');
+    const [fraudEmail, setFraudEmail] = useState('');
+    const [fraudResult, setFraudResult] = useState<{score: number; verdict: string; flags: string[]; tips: string[]} | null>(null);
+    const [fraudLoading, setFraudLoading] = useState(false);
+    const [fraudBranch, setFraudBranch] = useState('all');
+
+    // --- NEW POWER TOOLS AI STATES ---
+    // 1. Cold Email
+    const [ceCompany, setCeCompany] = useState('');
+    const [ceRole, setCeRole] = useState('');
+    const [ceOutput, setCeOutput] = useState('');
+    const [ceLoading, setCeLoading] = useState(false);
+
+    // 2. ATS Scanner
+    const [atsJd, setAtsJd] = useState('');
+    const [atsResult, setAtsResult] = useState('');
+    const [atsLoading, setAtsLoading] = useState(false);
+
+    // 4. Offer Comparator
+    const [ocCompanyA, setOcCompanyA] = useState('');
+    const [ocBaseA, setOcBaseA] = useState('');
+    const [ocBonusA, setOcBonusA] = useState('');
+    const [ocLocA, setOcLocA] = useState('');
+    const [ocCompanyB, setOcCompanyB] = useState('');
+    const [ocBaseB, setOcBaseB] = useState('');
+    const [ocBonusB, setOcBonusB] = useState('');
+    const [ocLocB, setOcLocB] = useState('');
+    const [ocResult, setOcResult] = useState('');
+    const [ocLoading, setOcLoading] = useState(false);
+
+    // 5. Interview Predictor
+    const [ipCompany, setIpCompany] = useState('');
+    const [ipResult, setIpResult] = useState<string[]>([]);
+    const [ipLoading, setIpLoading] = useState(false);
+
+    // 6. Salary Coach
+    const [scInitial, setScInitial] = useState('');
+    const [scTarget, setScTarget] = useState('');
+    const [scCompeting, setScCompeting] = useState('');
+    const [scResult, setScResult] = useState('');
+    const [scLoading, setScLoading] = useState(false);
+
+    // 10. Equity Analyzer
+    const [eaOptions, setEaOptions] = useState('');
+    const [eaStrike, setEaStrike] = useState('');
+    const [eaPreferred, setEaPreferred] = useState('');
+    const [eaResult, setEaResult] = useState<{value: number, cost: number} | null>(null);
+
+    // ── FEATURE 9: Trending Skills ──
+    const trendingSkills = useMemo(() => {
+        const pool = branchFilter === 'all' ? allOpportunities : allOpportunities.filter(o => o.branch === branchFilter);
+        const freq: Record<string, number> = {};
+        pool.forEach(o => o.requiredSkills.forEach(s => { freq[s] = (freq[s] || 0) + 1; }));
+        return Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 6);
+    }, [branchFilter]);
+    const maxSkillFreq = trendingSkills[0]?.[1] || 1;
+
+    // ── FEATURE 10: Surprise Me ──
+    const [surpriseJobs, setSurpriseJobs] = useState<Opportunity[]>([]);
+    const [showSurprise, setShowSurprise] = useState(false);
+    const runSurprise = () => {
+        const highMatch = allOpportunities
+            .filter(o => calculatePrecisionMatch(candidateCV, o).matchPercentage >= 65)
+            .sort(() => Math.random() - 0.5)
+            .slice(0, 3);
+        setSurpriseJobs(highMatch);
+        setShowSurprise(true);
+    };
+
+    // ── V4 FEATURE: Swipe Deck State ──
+    const [swipeIndex, setSwipeIndex] = useState(0);
+    const swipeDeck = useMemo(() => allOpportunities.slice(0, 20), [allOpportunities]);
+    const handleSwipe = (direction: 'left' | 'right', _job: Opportunity) => {
+        if (direction === 'right') {
+            // Tracker removed
+        }
+        setSwipeIndex(prev => prev + 1);
+    };
+
+    // ── FEATURE 8: 90-Day Roadmap — ALL 12 BRANCHES ──
+    const roadmaps: Record<string, { week: string; tasks: string[] }[]> = {
+        'ai-ds': [
+            { week: 'Week 1–2', tasks: ['Master Python NumPy & Pandas data manipulation', 'Complete ML Crash Course by Google (Coursera)', 'Build linear regression + logistic regression projects'] },
+            { week: 'Week 3–4', tasks: ['Learn Scikit-learn classifiers (SVM, Random Forest, XGBoost)', 'Enter a Kaggle beginner competition', 'Set up GitHub profile with proper README and project pins'] },
+            { week: 'Week 5–6', tasks: ['Deep Learning with PyTorch — CNN image classifier project', 'Deploy model API with FastAPI on HuggingFace Spaces', 'Apply to 10 AI/ML internships on LinkedIn + Internshala'] },
+            { week: 'Week 7–8', tasks: ['NLP: BERT fine-tuning with HuggingFace transformers', 'Build a RAG chatbot using LangChain + a vector DB (FAISS)', 'Write a LinkedIn article about your ML project learnings'] },
+            { week: 'Week 9–10', tasks: ['MLOps: Docker + MLflow + GitHub Actions CI/CD pipeline', 'Deploy model on AWS SageMaker (free tier) or GCP Vertex AI', 'Complete 50 LeetCode easy problems for OA prep'] },
+            { week: 'Week 11–12', tasks: ['System Design basics: API design, load balancing, caching', 'Mock interviews on Pramp.com (AI/ML + Python rounds)', 'Campus drive preparation: HR round stories using STAR method'] }
+        ],
+        'cse': [
+            { week: 'Week 1–2', tasks: ['DSA: Arrays, Strings, Hashmaps, Two-pointer patterns', 'LeetCode 30 easy problems — aim for <15 min per problem', 'Git & GitHub: branching, pull requests, commit conventions'] },
+            { week: 'Week 3–4', tasks: ['Trees, Graphs (BFS/DFS), Dynamic Programming patterns (Knapsack, LCS)', 'Build a REST API with Node.js + Express + PostgreSQL', 'Deploy the API on Vercel/Render with proper documentation'] },
+            { week: 'Week 5–6', tasks: ['System Design fundamentals: Load balancers, DB sharding, caching (Redis)', 'React frontend SPA project with state management (Context/Zustand)', 'First open-source contribution on GitHub (fix a bug, add a feature)'] },
+            { week: 'Week 7–8', tasks: ['Cloud basics: AWS EC2, S3, RDS, Lambda (free tier)', 'Docker: containerize your backend, multi-container with docker-compose', 'Apply to 15 companies'] },
+            { week: 'Week 9–10', tasks: ['LeetCode medium: 30 more problems (graph/DP focus)', 'Mock interviews on Pramp.com — solve + explain your reasoning', 'Resume ATS optimization — mirror keywords from job descriptions'] },
+            { week: 'Week 11–12', tasks: ['Full-stack capstone project with auth, DB, API, deploy', 'LinkedIn networking: connect with 20 engineers at target companies', 'Campus placement prep: OS, DBMS, Networks fundamentals revision'] }
+        ],
+        'it': [
+            { week: 'Week 1–2', tasks: ['Master SQL advanced: joins, subqueries, window functions, indexing', 'Learn Java Spring Boot REST API development fundamentals', 'Set up AWS free tier account — explore EC2, S3, IAM'] },
+            { week: 'Week 3–4', tasks: ['Linux command line mastery: file system, processes, networking tools', 'Build a Spring Boot CRUD API with MySQL + Postman testing', 'Learn Networking: TCP/IP, HTTP/HTTPS, DNS, OSI model'] },
+            { week: 'Week 5–6', tasks: ['Cybersecurity basics: OWASP Top 10, SQL injection, XSS prevention', 'AWS Solutions Architect Associate course (Udemy/freeCodeCamp)', 'Deploy app on AWS with EC2 + RDS + Load Balancer'] },
+            { week: 'Week 7–8', tasks: ['Selenium or Cypress test automation — write 20 test cases', 'Docker + Kubernetes intro: containerize and orchestrate your app', 'Apply to 15 IT/cloud/security internships'] },
+            { week: 'Week 9–10', tasks: ['Practice aptitude tests on IndiaBIX, PrepInsta for campus OA', 'Mock GD (Group Discussion) preparation with peers', 'Cloud certification: AWS Cloud Practitioner exam prep'] },
+            { week: 'Week 11–12', tasks: ['Capstone: Full-stack cloud-deployed project', 'LeetCode 50 easy+medium problems for coding rounds', 'Campus preparation: HR round STAR stories (3 unique stories minimum)'] }
+        ],
+        'ece': [
+            { week: 'Week 1–2', tasks: ['Revise Digital Electronics: Boolean Algebra, Combinational/Sequential circuits', 'Verilog basics on EDA Playground (model a 4-bit counter, MUX)', 'C programming refresher: pointers, structures, memory management'] },
+            { week: 'Week 3–4', tasks: ['Embedded C on Arduino/STM32: GPIO, UART, SPI, I2C protocols', 'Build IoT sensor project: temperature/humidity logger with MQTT', 'Microcontroller timer/interrupt project with real hardware'] },
+            { week: 'Week 5–6', tasks: ['VLSI: RTL design with Verilog, simulate on ModelSim/Vivado', 'Learn timing analysis, setup/hold violations, clock domain crossing', 'Apply to TI / Qualcomm / Intel / NXP internship programs'] },
+            { week: 'Week 7–8', tasks: ['Signal Processing: FFT, FIR/IIR filter design in MATLAB', 'Python for DSP: SciPy signal processing + audio analysis project', 'PCB design basics: KiCad schematic + layout + Gerber generation'] },
+            { week: 'Week 9–10', tasks: ['Aptitude test prep: IndiaBIX (Electronics + Aptitude)', 'Mock technical HR: explain your projects to a peer as if to recruiter', 'Core company application sprint: Qualcomm, TI, Bosch, Siemens portals'] },
+            { week: 'Week 11–12', tasks: ['GATE preparation: ECE syllabus mapping + 10 years PYQs', 'PSU applications: BHEL, NTPC, HPCL GATE-based recruitment', 'Campus placement final prep: VLSI + Embedded technical revision'] }
+        ],
+        'eee': [
+            { week: 'Week 1–2', tasks: ['Revise Power Systems fundamentals: per-unit analysis, symmetrical components', 'MATLAB/Simulink: model a basic AC circuit + load flow analysis', 'Study Power Electronics: converters, inverters, MOSFET/IGBT switching'] },
+            { week: 'Week 3–4', tasks: ['ETAP or PowerWorld: draw and simulate a 3-bus power system', 'Electric Vehicle basics: BMS architecture, Li-ion cell chemistry, SoC estimation', 'Python for EE: automate load calculations, plot power curves'] },
+            { week: 'Week 5–6', tasks: ['PLC programming basics: Siemens TIA Portal, Ladder logic automation', 'SCADA intro: HMI design, OPC-UA protocol, data historian', 'Apply to ABB, Siemens, Schneider Electric, L&T EduTech internships'] },
+            { week: 'Week 7–8', tasks: ['Smart Grid & FACTS devices: SVC, STATCOM, HVDC systems study', 'Renewable Energy: Solar PV system design using PVSyst (free trial)', 'Wind energy: turbine control, MPPT algorithms in Simulink'] },
+            { week: 'Week 9–10', tasks: ['Aptitude + technical mock tests (EE domain: machines, circuits, power)', 'GATE EE preparation: start with Signals & Systems + Networks', 'Apply to PSU recruitment: NTPC, PGCIL, BHEL, ONGC'] },
+            { week: 'Week 11–12', tasks: ['Build a capstone: Solar MPPT controller simulation in Simulink', 'LinkedIn: connect with 15 EE engineers at power sector companies', 'Campus prep: electrical machines, power electronics core revision'] }
+        ],
+        'mech': [
+            { week: 'Week 1–2', tasks: ['SolidWorks basics: Part modelling, assembly constraints, drawing views', 'Finish at least 3 3D models: a bracket, a shaft assembly, a gearbox', 'Revise Engineering Mechanics + Strength of Materials fundamentals'] },
+            { week: 'Week 3–4', tasks: ['ANSYS Mechanical: static structural + modal analysis on your SolidWorks model', 'Interpret FEA results: von Mises stress, deformation, factor of safety', 'Python for Mech engineers: matplotlib for plotting design curves'] },
+            { week: 'Week 5–6', tasks: ['Thermal Systems: ANSYS Fluent basics (CFD mesh, boundary conditions)', 'CATIA V5 or AutoCAD: 2D engineering drawings with GD&T tolerances', 'Apply to Tata Motors, Mahindra, DRDO, L&T MHPS internships'] },
+            { week: 'Week 7–8', tasks: ['Manufacturing processes deep dive: casting, forging, machining, welding', 'Six Sigma Green Belt intro: DMAIC methodology, SPC charts in Excel', 'Industrial IoT: understand SCADA, sensors, PLC in smart manufacturing'] },
+            { week: 'Week 9–10', tasks: ['GATE ME preparation: Fluid Mechanics + Thermodynamics (high-weightage)', 'Aptitude tests: Quantitative reasoning + technical Mech MCQs', 'Apply to core Mech companies: ISRO, HAL, BHEL, ONGC, Tata Steel'] },
+            { week: 'Week 11–12', tasks: ['Capstone project: CAD-FEA-CFD workflow (design → simulate → report)', 'GATE previous year paper: solve 2010–2024 ME papers (time-bound)', 'Campus prep: manufacturing, TOM, Fluid mechanics revision sprint'] }
+        ],
+        'civil': [
+            { week: 'Week 1–2', tasks: ['AutoCAD 2D: draw a residential building plan with dimensions + annotations', 'STAAD Pro basics: model a simple RCC frame, apply loads, check deflection', 'Revise Structural Analysis: propped cantilever, fixed beams, Moment Distribution'] },
+            { week: 'Week 3–4', tasks: ['Revit BIM: create a 3D building model with floors, walls, doors, windows', 'ETABS basics: model a multi-story frame for seismic analysis', 'Quantity Surveying: prepare a detailed BOQ for a residential project in Excel'] },
+            { week: 'Week 5–6', tasks: ['AutoCAD Civil 3D: road alignment design + cross-section generation', 'SWMM: design a storm drainage network for a small urban area', 'Apply to L&T Construction, Shapoorji, Nuvoco, RITES internships'] },
+            { week: 'Week 7–8', tasks: ['GIS basics: QGIS for urban mapping, drainage catchment delineation', 'Geotechnical: PLAXIS 2D slope stability analysis (trial version)', 'Construction management: MS Project for scheduling a construction project'] },
+            { week: 'Week 9–10', tasks: ['GATE CE preparation: Structural Analysis + Soil Mechanics (high weightage)', 'Solve 10 years GATE CE papers (timed, review mistakes meticulously)', 'Apply to PSU: CPWD, NHAI, RITES, IRCON, NBCC through GATE'] },
+            { week: 'Week 11–12', tasks: ['Capstone: BIM model + structural analysis + cost estimate of a building', 'IS codes revision: IS 456, IS 800, IS 1893 for RCC, steel, and seismic design', 'Campus prep: SOM, Fluid Mechanics, Surveying technical revision'] }
+        ],
+        'chem': [
+            { week: 'Week 1–2', tasks: ['Aspen Plus basics: build a distillation column simulation (crude oil separation)', 'Revise Chemical Engineering Thermodynamics: equations of state, VLE, flash calculations', 'Python for ChE: solve ODEs for reactor design using scipy.integrate'] },
+            { week: 'Week 3–4', tasks: ['Aspen HYSYS: simulate a heat exchanger network (HEN) with energy integration', 'Process safety: HAZOP methodology — identify deviations on a PFD/P&ID', 'Draw a detailed P&ID for a simple process unit (reactor + separator + HX)'] },
+            { week: 'Week 5–6', tasks: ['Reaction Engineering: MATLAB/Python simulation of CSTR + PFR reactions', 'Apply to oil & gas internships: ONGC, HPCL, BPCL, Reliance, GAIL', 'Apply to pharma internships: Dr. Reddy\'s, Cipla, Sun Pharma process engineering'] },
+            { week: 'Week 7–8', tasks: ['Mass Transfer: absorption/stripping column design using HETP method', 'Fluid Mechanics in ChE: Bernoulli + friction losses + pump selection (NPSH)', 'ChE simulation project: complete plant simulation with recycles'] },
+            { week: 'Week 9–10', tasks: ['GATE CH preparation: Mass Transfer + Reaction Engineering (key areas)', 'Solve 10 years GATE CH previous papers under exam conditions', 'Apply to PSU: ONGC, BPCL, HPCL, GAIL through GATE scores'] },
+            { week: 'Week 11–12', tasks: ['Capstone: Complete process design (reaction + separation + utilities) in Aspen', 'Revise Heat Transfer: LMTD/NTU methods, shell-tube HX design', 'Campus prep: process calculations, thermodynamics, transport phenomena sprint'] }
+        ],
+        'aero': [
+            { week: 'Week 1–2', tasks: ['Revise Aerodynamics: lift/drag, boundary layer theory, NACA airfoil characteristics', 'MATLAB: compute lift polar (Cl vs alpha) for a chosen airfoil', 'Learn OpenFOAM basics: install + run the lid-driven cavity tutorial case'] },
+            { week: 'Week 3–4', tasks: ['ANSYS Fluent: subsonic flow over NACA 0012 airfoil — mesh, solve, post-process', 'Interpret CFD results: pressure coefficient Cp, drag polar, stall angle', 'Python for Aero: trajectory simulation, orbital mechanics basics with NumPy'] },
+            { week: 'Week 5–6', tasks: ['Propulsion: MATLAB simulation of Brayton cycle (gas turbine) with actual data', 'Structures: NASTRAN/PATRAN or ANSYS static analysis of a wing rib section', 'Apply to ISRO, HAL, DRDO, NAL, Airbus Bengaluru, Boeing India internships'] },
+            { week: 'Week 7–8', tasks: ['Stability & Control: derive equations of motion, simulate pitch dynamics in Simulink', 'ArduPilot: understand autopilot architecture, test on SITL (Software in the Loop)', 'UAV design basics: size a fixed-wing UAV (wing loading, thrust-to-weight)'] },
+            { week: 'Week 9–10', tasks: ['GATE AE preparation: Aerodynamics + Structures (both high-weightage areas)', 'Solve 10 years GATE AE papers, identify weak topics', 'Apply to defense research internships via DRDO recruitment portal'] },
+            { week: 'Week 11–12', tasks: ['Capstone: CFD + FEA integrated study on a UAV component', 'Revise Aircraft Performance: take-off, climb, cruise, landing calculations', 'Campus prep: Aerodynamics, structures, propulsion core revision sprint'] }
+        ],
+        'robotics': [
+            { week: 'Week 1–2', tasks: ['ROS2 (Humble/Iron): install, understand nodes, topics, services, actions', 'Write a ROS2 Python publisher/subscriber for a basic sensor simulation', 'Linear Algebra refresher: rotation matrices, homogeneous transforms, Jacobians'] },
+            { week: 'Week 3–4', tasks: ['Robot Kinematics: implement forward + inverse kinematics for a 3-DOF arm in Python', 'Gazebo simulation: spawn a robot URDF, write a joint controller', 'OpenCV + ROS2: build a color-blob tracking node with camera feed'] },
+            { week: 'Week 5–6', tasks: ['SLAM basics: run Cartographer or Nav2 SLAM on a simulated environment', 'Path planning: implement A* and Dijkstra algorithms from scratch in Python', 'Apply to Apex Robotics, ABB India, Fanuc, ISRO, Boston Dynamics partner labs'] },
+            { week: 'Week 7–8', tasks: ['C++ for robotics: rewrite your ROS2 nodes in C++ (performance matters)', 'Computer Vision: YOLO object detection + 3D bounding box with depth camera', 'PCB basics: design a simple motor driver schematic in KiCad'] },
+            { week: 'Week 9–10', tasks: ['Control Systems: PID + LQR controller tuning in Simulink for a quadrotor', 'Apply to robotics startups and research labs (check IIT/IISc project listings)', 'Competitive robotics: register for ABU Robocon or IEEE IROS competitions'] },
+            { week: 'Week 11–12', tasks: ['Capstone: autonomous navigation demo in Gazebo (SLAM + Nav2 + manipulation)', 'ROS2 portfolio: publish your packages to GitHub with videos', 'Campus prep: control theory, embedded systems, microcontrollers revision'] }
+        ],
+        'biotech': [
+            { week: 'Week 1–2', tasks: ['Python for Bioinformatics: Biopython library basics (sequence parsing, BLAST)', 'Understand NGS workflow: FASTQ → alignment → variant calling pipeline', 'Revise Molecular Biology: DNA replication, transcription, translation, PCR'] },
+            { week: 'Week 3–4', tasks: ['R for genomics: DESeq2 differential gene expression analysis on public dataset', 'Bioinformatics tools: BLAST, Clustal Omega, MEGA (phylogenetic trees)', 'Apply to Dr. Reddy\'s, Biocon, Sun Pharma, Cipla research internships'] },
+            { week: 'Week 5–6', tasks: ['Drug Discovery: PyMOL molecular visualization + AutoDock Vina docking tutorial', 'Bioprocess engineering: design a batch fermentation for recombinant protein', 'GMP basics: ICH Q7 guidelines, cleanroom classifications, SOP writing'] },
+            { week: 'Week 7–8', tasks: ['CRISPR basics: understand guide RNA design, off-target analysis using online tools', 'Flow Cytometry data analysis: FlowJo or FCS Express (trial versions)', 'Clinical Research: ICH-GCP E6 guidelines, clinical trial phases overview'] },
+            { week: 'Week 9–10', tasks: ['GATE BT/XL preparation: Molecular Biology + Bioprocess Engineering sections', 'Apply to CSIR labs, ICMR institutes for research trainee programs', 'Regulatory Affairs basics: CDSCO drug approval pathway in India'] },
+            { week: 'Week 11–12', tasks: ['Capstone: Complete bioinformatics pipeline from raw FASTQ to biological insights', 'Publish analysis as a Jupyter notebook on GitHub with clear documentation', 'Campus prep: biochemistry, microbiology, bioprocess core revision sprint'] }
+        ],
+        'metallurgy': [
+            { week: 'Week 1–2', tasks: ['Revise Phase Diagrams: Fe-C diagram, eutectic/eutectoid reactions, TTT/CCT curves', 'FactSage thermodynamic software: compute phase equilibria for a steel alloy', 'Python for metallurgy: plot TTT curves, cooling curves using matplotlib'] },
+            { week: 'Week 3–4', tasks: ['Materials characterization: understand XRD, SEM/EDS, TEM — interpret sample spectra', 'ANSYS Mechanical: FEA of a component undergoing thermal cycling (fatigue analysis)', 'Electrochemistry: plot Tafel slopes, understand corrosion potential (Ecorr)'] },
+            { week: 'Week 5–6', tasks: ['Welding metallurgy: HAZ microstructure, PWHT effects, residual stress management', 'NDT techniques: understand UT, RT, MPI, PT, ET — interpret test results', 'Apply to Tata Steel, JSW Steel, SAIL, Hindalco, NALCO, DRDO internships'] },
+            { week: 'Week 7–8', tasks: ['Powder Metallurgy: study P/M processing, sintering mechanisms, HIP process', 'Semiconductor materials: thin film deposition (PVD, CVD) and characterization', 'Battery materials: cathode/anode chemistries for Li-ion, solid-state batteries'] },
+            { week: 'Week 9–10', tasks: ['GATE MT preparation: Thermodynamics + Physical Metallurgy (key areas)', 'Solve 10 years GATE MT papers under timed conditions', 'Apply to PSU: SAIL, NMDC, Hindustan Copper, NALCO through GATE'] },
+            { week: 'Week 11–12', tasks: ['Capstone: failure analysis case study — collect images, interpret microstructure, determine root cause', 'Report writing: write a professional failure analysis report (ASTM format)', 'Campus prep: physical metallurgy, mechanical behavior, corrosion revision sprint'] }
+        ]
+    };
+    const [roadmapBranch, setRoadmapBranch] = useState(candidateCV.branch);
+    const [roadmapChecks, setRoadmapChecks] = useState<Set<string>>(new Set());
+    const currentRoadmap = roadmaps[roadmapBranch] || roadmaps['cse'];
+    const totalTasks = currentRoadmap.reduce((sum, w) => sum + w.tasks.length, 0);
+    const completedTasks = [...roadmapChecks].filter(k => k.startsWith(roadmapBranch)).length;
+    const roadmapPct = Math.round((completedTasks / totalTasks) * 100);
+    const toggleRoadmapCheck = (key: string) => {
+        setRoadmapChecks(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
+    };
+
+    const leaderboard = useMemo(() => {
+        const stats: Record<string, { jobs: number; alums: number; avgStipend: number; total: number; branches: Set<string> }> = {};
+        allOpportunities.forEach(o => {
+            if (!stats[o.company]) stats[o.company] = { jobs: 0, alums: 0, avgStipend: 0, total: 0, branches: new Set() };
+            stats[o.company].jobs++;
+            stats[o.company].alums = alumniData.filter(a => a.company === o.company).length;
+            stats[o.company].total += o.stipend;
+            stats[o.company].branches.add(o.branch);
+        });
+        return Object.entries(stats)
+            .map(([name, s]) => ({ name, ...s, avgStipend: Math.round(s.total / s.jobs), branchCount: s.branches.size }))
+            .sort((a, b) => (b.jobs + b.alums * 3) - (a.jobs + a.alums * 3))
+            .slice(0, 20);
+    }, []);
+    const [leaderboardBranch, setLeaderboardBranch] = useState('all');
+    const [leaderboardSort, setLeaderboardSort] = useState<'score'|'jobs'|'alums'|'salary'>('score');
+    const maxJobs = leaderboard[0]?.jobs || 1;
 
     // Precision Match Calculator
     const calculatePrecisionMatch = (cv: typeof candidateCV, item: Opportunity) => {
@@ -461,11 +738,13 @@ export default function Home() {
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
         const handle = loginHandleInput.trim().toLowerCase().replace(/@smartsquad\.com$/, '').replace(/[^a-z0-9._]/g, '') || "user";
-        setAuthUser({
+        const newUser = {
             name: handle.charAt(0).toUpperCase() + handle.slice(1),
             handle: handle,
             uniqueId: `${handle}@smartsquad.com`
-        });
+        };
+        setAuthUser(newUser);
+        if (typeof window !== 'undefined') localStorage.setItem('smartSquadUser', JSON.stringify(newUser));
         setIsLoggedIn(true);
         setActiveView('jobs-page');
     };
@@ -478,21 +757,31 @@ export default function Home() {
         const branch = regBranchInput;
         const branchName = branchNamesMap[branch] || "Engineering";
 
-        setAuthUser({
+        const newUser = {
             name: name,
             handle: handle,
             uniqueId: `${handle}@smartsquad.com`
-        });
-        setCandidateCV(prev => ({
-            ...prev,
+        };
+        setAuthUser(newUser);
+        if (typeof window !== 'undefined') localStorage.setItem('smartSquadUser', JSON.stringify(newUser));
+        
+        const updatedCV = {
+            ...candidateCV,
             branch: branch,
             branchName: branchName
-        }));
+        };
+        setCandidateCV(updatedCV);
+        if (typeof window !== 'undefined') localStorage.setItem('smartSquadCV', JSON.stringify(updatedCV));
+        
         setIsLoggedIn(true);
         setActiveView('profile-page');
     };
 
     const handleLogout = () => {
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem('smartSquadUser');
+            localStorage.removeItem('smartSquadCV');
+        }
         setIsLoggedIn(false);
         setAuthMode('login');
     };
@@ -541,7 +830,7 @@ export default function Home() {
             if (!res.ok) throw new Error('Network error');
             const data = await res.json();
             setChatMessages(prev => [...prev, { role: 'model', text: data.reply }]);
-        } catch {
+        } catch (e) {
             setChatMessages(prev => [...prev, {
                 role: 'model',
                 text: '⚠️ I had trouble reaching the AI server. Check your network and try again!\n\nMeanwhile, explore 2,000+ listings in the Jobs Feed or set your GEMINI_API_KEY in .env.local for full AI support.'
@@ -582,7 +871,7 @@ export default function Home() {
             certifications: certs
         });
 
-        alert("CV & Branch profile successfully updated! Precision scoring recalibrated over 1,008 active listings.");
+        alert("✅ CV & Branch profile updated! Precision scoring recalibrated over 2,016 active listings.");
     };
 
     const titlesMap: Record<string, string> = {
@@ -735,11 +1024,131 @@ export default function Home() {
     }
 
     // 2. MAIN WORKSPACE DASHBOARD
+    const TICKER_ITEMS = [
+        { emoji: '🔥', text: '2,016 Active Opportunities Live' },
+        { emoji: '🏆', text: 'Google hiring 24 CSE & AI roles' },
+        { emoji: '💰', text: '₹42L avg FAANG package (2025–26)' },
+        { emoji: '🎓', text: '318 campus placements this month' },
+        { emoji: '⚡', text: 'Qualcomm: 12 new ECE internships' },
+        { emoji: '🚀', text: 'ISRO & DRDO PSU drives open now' },
+        { emoji: '📈', text: 'Python #1 skill across all branches' },
+        { emoji: '🌟', text: 'Tata Motors: Mech & Robotics intake' },
+        { emoji: '💡', text: 'New: Campus Placement filter added' },
+        { emoji: '🤖', text: 'Gemini AI advisor now live — try it!' },
+    ];
+
+    // --- POWER TOOLS AI HANDLERS ---
+    const fetchAIResponse = async (prompt: string): Promise<string> => {
+        try {
+            const res = await fetch('/api/ai-chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: prompt, history: [] })
+            });
+            const data = await res.json();
+            return data.reply || "No reply from AI";
+        } catch (e) {
+            return "Failed to connect to AI. Please try again.";
+        }
+    };
+
+    const handleGenerateEmail = async () => {
+        if (!ceCompany || !ceRole) return alert("Please enter Company and Role.");
+        setCeLoading(true);
+        setCeOutput('');
+        const prompt = `Write a highly personalized, professional cold email or LinkedIn DM (under 150 words) to a recruiter at ${ceCompany} for the ${ceRole} role. Use my profile details: Branch: ${candidateCV.branchName}, Skills: ${candidateCV.skills.join(', ')}, CGPA: ${candidateCV.cgpa}. Make it sound natural, not overly robotic.`;
+        const result = await fetchAIResponse(prompt);
+        setCeOutput(result);
+        setCeLoading(false);
+    };
+
+    const handleScanATS = async () => {
+        if (!atsJd) return alert("Please paste the job description.");
+        setAtsLoading(true);
+        setAtsResult('');
+        const prompt = `You are an ATS Resume Scanner. My skills are: ${candidateCV.skills.join(', ')}. My branch is ${candidateCV.branchName}. Compare this to the following Job Description and return a JSON object (no markdown, just JSON) with "score" (0-100) and "missingKeywords" (array of strings). Job Description: ${atsJd}`;
+        const result = await fetchAIResponse(prompt);
+        try {
+            const cleanJson = result.replace(/```json|```/g, '').trim();
+            const parsed = JSON.parse(cleanJson);
+            const score = parsed.score || 0;
+            const missingKeywords = Array.isArray(parsed.missingKeywords) ? parsed.missingKeywords : [];
+            setAtsResult(`ATS Match Score: ${score}%\n\nMissing Keywords:\n- ${missingKeywords.join('\n- ')}`);
+        } catch (e) {
+            setAtsResult(result); // Fallback if parsing fails
+        }
+        setAtsLoading(false);
+    };
+
+    const handleCompareOffers = async () => {
+        if (!ocCompanyA || !ocCompanyB) return alert("Please fill details for both offers.");
+        setOcLoading(true);
+        setOcResult('');
+        const prompt = `Compare these two job offers. Offer A: ${ocCompanyA} (${ocBaseA} LPA, ${ocBonusA} Bonus, ${ocLocA}). Offer B: ${ocCompanyB} (${ocBaseB} LPA, ${ocBonusB} Bonus, ${ocLocB}). Give a short summary on which is better considering cost of living in Indian cities and total compensation.`;
+        const result = await fetchAIResponse(prompt);
+        setOcResult(result);
+        setOcLoading(false);
+    };
+
+    const handlePredictInterview = async () => {
+        if (!ipCompany || ipCompany === 'Select Company') return alert("Select a company first.");
+        setIpLoading(true);
+        setIpResult([]);
+        const prompt = `What are the top 5 most frequently asked interview questions (technical and behavioral) for a fresher engineering role at ${ipCompany}? Return ONLY a JSON array of strings, no other text.`;
+        const result = await fetchAIResponse(prompt);
+        try {
+            const cleanJson = result.replace(/```json|```/g, '').trim();
+            const parsed = JSON.parse(cleanJson);
+            if (Array.isArray(parsed)) setIpResult(parsed);
+            else setIpResult([result]);
+        } catch (e) {
+            setIpResult([result]);
+        }
+        setIpLoading(false);
+    };
+
+    const handleDraftSalaryScript = async () => {
+        if (!scInitial || !scTarget) return alert("Please enter Initial and Target Offer.");
+        setScLoading(true);
+        setScResult('');
+        const prompt = `Write a polite and professional salary negotiation email. Initial offer is ${scInitial} LPA. Target is ${scTarget} LPA. Competing offers/context: ${scCompeting}. Just output the email body.`;
+        const result = await fetchAIResponse(prompt);
+        setScResult(result);
+        setScLoading(false);
+    };
+
     return (
         <div id="app-dashboard">
+            {/* Mobile sidebar overlay */}
+            <div 
+                className={`sidebar-overlay ${isSidebarOpen ? 'visible' : ''}`}
+                onClick={() => setIsSidebarOpen(false)}
+            />
+            
+            {/* Floating hamburger toggle button (mobile only) */}
+            <button
+                className={`sidebar-toggle-btn ${isSidebarOpen ? 'open' : ''}`}
+                onClick={toggleSidebar}
+                aria-label="Toggle navigation"
+            >
+                <span /><span /><span />
+            </button>
+
+            {/* ── LIVE STATS TICKER ── */}
+            <div className="stats-ticker-wrapper">
+                <div className="stats-ticker">
+                    {[...TICKER_ITEMS, ...TICKER_ITEMS].map((item, i) => (
+                        <span key={i} className="ticker-item">
+                            <span className="ticker-dot"></span>
+                            {item.emoji} {item.text}
+                        </span>
+                    ))}
+                </div>
+            </div>
+
             {/* Systematic Navigation Sidebar */}
-            <aside className="sidebar">
-                <div className="sidebar-brand">
+            <aside className={`sidebar ${!isSidebarOpen ? 'sidebar-collapsed' : ''}`}>
+                <div className="sidebar-brand" onClick={toggleSidebar} style={{ cursor: 'pointer' }}>
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
                         <polyline points="2 17 12 22 22 17"></polyline>
@@ -759,59 +1168,85 @@ export default function Home() {
                             <span className="user-id-badge">{authUser.uniqueId}</span>
                         </div>
                     </div>
-                    <div className="user-status-row">
+                    
+                    {/* ── V4 FEATURE 9: GAMIFIED LEVELING SYSTEM ── */}
+                    {(() => {
+                        const xp = (bookmarks.size * 20) + (roadmapChecks.size * 50);
+                        const level = Math.floor(xp / 500) + 1;
+                        const nextXp = level * 500;
+                        const progress = (xp % 500) / 500 * 100;
+                        return (
+                            <div style={{ marginTop: '0.75rem', background: 'rgba(0,0,0,0.2)', padding: '0.75rem', borderRadius: 'var(--radius-sm)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                                    <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 600 }}>Level {level} Explorer</span>
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--accent)' }}>{xp} / {nextXp} XP</span>
+                                </div>
+                                <div style={{ height: 6, background: '#334155', borderRadius: 3, overflow: 'hidden' }}>
+                                    <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg, #3b82f6, #a855f7)', transition: 'width 1s ease' }} />
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem' }}>
+                                    {level >= 1 && <span className="badge" style={{ fontSize: '0.65rem', background: '#3b82f6', color: 'white' }}>🏅 Rookie</span>}
+                                    {level >= 2 && <span className="badge" style={{ fontSize: '0.65rem', background: '#8b5cf6', color: 'white' }}>🔥 Hustler</span>}
+                                </div>
+                            </div>
+                        );
+                    })()}
+
+                    <div className="user-status-row" style={{ marginTop: '0.75rem' }}>
                         <span style={{ color: 'var(--success)', fontWeight: 600 }}>● Active Profile</span>
                         <a style={{ cursor: 'pointer', color: 'var(--accent)', fontWeight: 600 }} onClick={() => setActiveView('profile-page')}>Edit CV</a>
                     </div>
                 </div>
 
-                <div className="sidebar-nav-title">Platform Features</div>
+                <div className="sidebar-nav-title">Main Features</div>
                 <ul className="sidebar-menu">
+                    <li><a className={`nav-tab ${activeView === 'jobs-page' ? 'active' : ''}`} onClick={() => { setActiveView('jobs-page'); setIsSidebarOpen(false); }}>💼 2000+ Opportunities</a></li>
+                    <li><a className={`nav-tab ${activeView === 'ai-page' ? 'active' : ''}`} onClick={() => { setActiveView('ai-page'); setIsSidebarOpen(false); }}>✨ AI Match Engine</a></li>
+                    <li><a className={`nav-tab ${activeView === 'profile-page' ? 'active' : ''}`} onClick={() => { setActiveView('profile-page'); setIsSidebarOpen(false); }}>📋 CV & Branch Profile</a></li>
+                    <li><a className={`nav-tab ${activeView === 'portals-page' ? 'active' : ''}`} onClick={() => { setActiveView('portals-page'); setIsSidebarOpen(false); }}>🌐 30+ Portals</a></li>
+                    <li><a className={`nav-tab ${activeView === 'alumni-page' ? 'active' : ''}`} onClick={() => { setActiveView('alumni-page'); setIsSidebarOpen(false); }}>🤝 Alumni Network</a></li>
+                    <li><a className={`nav-tab ${activeView === 'rejection-page' ? 'active' : ''}`} onClick={() => { setActiveView('rejection-page'); setIsSidebarOpen(false); }}>📊 Rejection Analytics</a></li>
+                    <li><a className={`nav-tab ${activeView === 'roadmap-page' ? 'active' : ''}`} onClick={() => { setActiveView('roadmap-page'); setIsSidebarOpen(false); }}>🗺️ 90-Day Prep Roadmap</a></li>
                     <li>
-                        <a className={`nav-tab ${activeView === 'jobs-page' ? 'active' : ''}`} onClick={() => setActiveView('jobs-page')}>
-                            💼 1000+ Opportunities
+                        <a className={`nav-tab ${activeView === 'saved-page' ? 'active' : ''}`} onClick={() => { setActiveView('saved-page'); setIsSidebarOpen(false); }}>
+                            ⭐ Saved Jobs
+                            {bookmarks.size > 0 && (
+                                <span style={{ marginLeft: 'auto', background: 'var(--primary)', color: 'white', borderRadius: '10px', padding: '0 6px', fontSize: '0.7rem', fontWeight: 800 }}>{bookmarks.size}</span>
+                            )}
                         </a>
                     </li>
-                    <li>
-                        <a className={`nav-tab ${activeView === 'ai-page' ? 'active' : ''}`} onClick={() => setActiveView('ai-page')}>
-                            ✨ AI Match Engine
-                        </a>
-                    </li>
-                    <li>
-                        <a className={`nav-tab ${activeView === 'profile-page' ? 'active' : ''}`} onClick={() => setActiveView('profile-page')}>
-                            📋 Engineering & CV Data
-                        </a>
-                    </li>
-                    <li>
-                        <a className={`nav-tab ${activeView === 'portals-page' ? 'active' : ''}`} onClick={() => setActiveView('portals-page')}>
-                            🌐 30+ Connected Portals
-                        </a>
-                    </li>
-                    <li>
-                        <a className={`nav-tab ${activeView === 'alumni-page' ? 'active' : ''}`} onClick={() => setActiveView('alumni-page')}>
-                            🤝 Alumni Mentorship
-                        </a>
-                    </li>
-                    <li>
-                        <a className={`nav-tab ${activeView === 'rejection-page' ? 'active' : ''}`} onClick={() => setActiveView('rejection-page')}>
-                            📊 Rejection Analytics
-                        </a>
-                    </li>
+                    <li><a className={`nav-tab ${activeView === 'leaderboard-page' ? 'active' : ''}`} onClick={() => { setActiveView('leaderboard-page'); setIsSidebarOpen(false); }}>🏆 Company Leaderboard</a></li>
+                    <li><a className={`nav-tab ${activeView === 'fraud-page' ? 'active' : ''}`} onClick={() => { setActiveView('fraud-page'); setIsSidebarOpen(false); }}>🛡️ Fraud Detector</a></li>
                 </ul>
+
+                <div className="sidebar-nav-title" style={{ marginTop: '0.85rem' }}>Power Tools (New)</div>
+                <ul className="sidebar-menu">
+                    <li><a className={`nav-tab ${activeView === 'cold-email-page' ? 'active' : ''}`} onClick={() => { setActiveView('cold-email-page'); setIsSidebarOpen(false); }}>📧 Cold Email Generator</a></li>
+                    <li><a className={`nav-tab ${activeView === 'ats-scanner-page' ? 'active' : ''}`} onClick={() => { setActiveView('ats-scanner-page'); setIsSidebarOpen(false); }}>🔍 ATS Resume Scanner</a></li>
+                    <li><a className={`nav-tab ${activeView === 'hidden-market-page' ? 'active' : ''}`} onClick={() => { setActiveView('hidden-market-page'); setIsSidebarOpen(false); }}>🕵️ Hidden Market Explorer</a></li>
+                    <li><a className={`nav-tab ${activeView === 'offer-comparator-page' ? 'active' : ''}`} onClick={() => { setActiveView('offer-comparator-page'); setIsSidebarOpen(false); }}>⚖️ Offer Comparator</a></li>
+                    <li><a className={`nav-tab ${activeView === 'interview-predictor-page' ? 'active' : ''}`} onClick={() => { setActiveView('interview-predictor-page'); setIsSidebarOpen(false); }}>🔮 Interview Predictor</a></li>
+                    <li><a className={`nav-tab ${activeView === 'salary-coach-page' ? 'active' : ''}`} onClick={() => { setActiveView('salary-coach-page'); setIsSidebarOpen(false); }}>💬 Salary Coach</a></li>
+                    <li><a className={`nav-tab ${activeView === 'visa-hub-page' ? 'active' : ''}`} onClick={() => { setActiveView('visa-hub-page'); setIsSidebarOpen(false); }}>🌐 Visa & Sponsorship Hub</a></li>
+                    <li><a className={`nav-tab ${activeView === 'hackathon-board-page' ? 'active' : ''}`} onClick={() => { setActiveView('hackathon-board-page'); setIsSidebarOpen(false); }}>🚀 Hackathon Board</a></li>
+                    <li><a className={`nav-tab ${activeView === 'peer-interview-page' ? 'active' : ''}`} onClick={() => { setActiveView('peer-interview-page'); setIsSidebarOpen(false); }}>👥 Peer Mock Matcher</a></li>
+                    <li><a className={`nav-tab ${activeView === 'equity-analyzer-page' ? 'active' : ''}`} onClick={() => { setActiveView('equity-analyzer-page'); setIsSidebarOpen(false); }}>📈 Startup Equity Analyzer</a></li>
+                </ul>
+
 
                 <div className="sidebar-nav-title" style={{ marginTop: '0.85rem' }}>Branch Quick Filters (All 12)</div>
                 <ul className="sidebar-menu">
-                    <li><a onClick={() => filterByBranchDirect('ai-ds')}><span style={{ color: '#a855f7' }}>●</span> AI & Data Science</a></li>
-                    <li><a onClick={() => filterByBranchDirect('cse')}><span style={{ color: '#3b82f6' }}>●</span> Computer Science / IT</a></li>
-                    <li><a onClick={() => filterByBranchDirect('ece')}><span style={{ color: '#10b981' }}>●</span> ECE & VLSI</a></li>
-                    <li><a onClick={() => filterByBranchDirect('eee')}><span style={{ color: '#06b6d4' }}>●</span> Electrical (EEE)</a></li>
-                    <li><a onClick={() => filterByBranchDirect('mech')}><span style={{ color: '#f59e0b' }}>●</span> Mechanical & Auto</a></li>
-                    <li><a onClick={() => filterByBranchDirect('civil')}><span style={{ color: '#ef4444' }}>●</span> Civil & Structures</a></li>
-                    <li><a onClick={() => filterByBranchDirect('robotics')}><span style={{ color: '#ec4899' }}>●</span> Robotics & Mechatronics</a></li>
-                    <li><a onClick={() => filterByBranchDirect('aero')}><span style={{ color: '#6366f1' }}>●</span> Aerospace & Avionics</a></li>
-                    <li><a onClick={() => filterByBranchDirect('chem')}><span style={{ color: '#14b8a6' }}>●</span> Chemical Engineering</a></li>
-                    <li><a onClick={() => filterByBranchDirect('biotech')}><span style={{ color: '#84cc16' }}>●</span> Biotechnology</a></li>
-                    <li><a onClick={() => filterByBranchDirect('metallurgy')}><span style={{ color: '#8b5cf6' }}>●</span> Metallurgy & Materials</a></li>
+                    <li><a onClick={() => { filterByBranchDirect('ai-ds'); setIsSidebarOpen(false); }}><span style={{ color: '#a855f7' }}>●</span> AI & Data Science</a></li>
+                    <li><a onClick={() => { filterByBranchDirect('cse'); setIsSidebarOpen(false); }}><span style={{ color: '#3b82f6' }}>●</span> Computer Science / IT</a></li>
+                    <li><a onClick={() => { filterByBranchDirect('ece'); setIsSidebarOpen(false); }}><span style={{ color: '#10b981' }}>●</span> ECE & VLSI</a></li>
+                    <li><a onClick={() => { filterByBranchDirect('eee'); setIsSidebarOpen(false); }}><span style={{ color: '#06b6d4' }}>●</span> Electrical (EEE)</a></li>
+                    <li><a onClick={() => { filterByBranchDirect('mech'); setIsSidebarOpen(false); }}><span style={{ color: '#f59e0b' }}>●</span> Mechanical & Auto</a></li>
+                    <li><a onClick={() => { filterByBranchDirect('civil'); setIsSidebarOpen(false); }}><span style={{ color: '#ef4444' }}>●</span> Civil & Structures</a></li>
+                    <li><a onClick={() => { filterByBranchDirect('robotics'); setIsSidebarOpen(false); }}><span style={{ color: '#ec4899' }}>●</span> Robotics & Mechatronics</a></li>
+                    <li><a onClick={() => { filterByBranchDirect('aero'); setIsSidebarOpen(false); }}><span style={{ color: '#6366f1' }}>●</span> Aerospace & Avionics</a></li>
+                    <li><a onClick={() => { filterByBranchDirect('chem'); setIsSidebarOpen(false); }}><span style={{ color: '#14b8a6' }}>●</span> Chemical Engineering</a></li>
+                    <li><a onClick={() => { filterByBranchDirect('biotech'); setIsSidebarOpen(false); }}><span style={{ color: '#84cc16' }}>●</span> Biotechnology</a></li>
+                    <li><a onClick={() => { filterByBranchDirect('metallurgy'); setIsSidebarOpen(false); }}><span style={{ color: '#8b5cf6' }}>●</span> Metallurgy & Materials</a></li>
                 </ul>
 
                 <div className="sidebar-footer">
@@ -827,14 +1262,48 @@ export default function Home() {
             {/* Main Content Workspace */}
             <main className="main-content">
                 <header className="top-header">
-                    <h1>{titlesMap[activeView]}</h1>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <span className="badge pass" style={{ fontSize: '0.8rem' }}>
-                            Branch: {candidateCV.branchName.split(" ")[0]}
+                    <h1>{({
+                        'jobs-page': '💼 2000+ Opportunities',
+                        'ai-page': '✨ AI Match Engine',
+                        'profile-page': '📋 CV & Branch Profile',
+                        'portals-page': '🌐 30+ Connected Portals',
+                        'alumni-page': '🤝 Alumni Mentorship Network',
+                        'rejection-page': '📊 Rejection Analytics Hub',
+                        'saved-page': '⭐ Saved Jobs',
+                        'roadmap-page': '🗺️ 90-Day Prep Roadmap',
+                        'leaderboard-page': '🏆 Company Leaderboard',
+                        'fraud-page': '🛡️ Internship / Job Fraud Detector',
+                        'cold-email-page': '📧 Cold Email Generator',
+                        'ats-scanner-page': '🔍 ATS Resume Scanner',
+                        'hidden-market-page': '🕵️ Hidden Market Explorer',
+                        'offer-comparator-page': '⚖️ Offer Comparator',
+                        'interview-predictor-page': '🔮 Interview Predictor',
+                        'salary-coach-page': '💬 Salary Negotiation Coach',
+                        'visa-hub-page': '🌐 Visa & Sponsorship Hub',
+                        'hackathon-board-page': '🚀 Open Source & Hackathon Board',
+                        'peer-interview-page': '👥 Peer Mock Interview Matcher',
+                        'equity-analyzer-page': '📈 Startup Equity Analyzer'
+                    } as Record<string,string>)[activeView] || 'Smart Squad'}</h1>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <span className="badge pass" style={{ fontSize: '0.78rem' }}>
+                            {candidateCV.branchName.split(' ')[0]}
                         </span>
-                        <span className="user-id-badge" style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                        <span className="user-id-badge" style={{ fontSize: '0.82rem', fontWeight: 600 }}>
                             {authUser.uniqueId}
                         </span>
+                        {/* Dark Mode Toggle */}
+                        <button
+                            onClick={() => setIsDark(d => !d)}
+                            title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                            style={{
+                                width: 36, height: 36, borderRadius: '50%',
+                                background: isDark ? '#f59e0b' : '#1e293b',
+                                color: 'white', border: 'none', cursor: 'pointer',
+                                fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                                boxShadow: isDark ? '0 0 12px rgba(245,158,11,0.4)' : '0 0 12px rgba(30,41,59,0.3)'
+                            }}
+                        >{isDark ? '☀️' : '🌙'}</button>
                     </div>
                 </header>
 
@@ -842,10 +1311,88 @@ export default function Home() {
                     {/* MODULE 1: 1000+ LIVE CHOICES */}
                     {activeView === 'jobs-page' && (
                         <section className="page-view active-view">
-                            <div className="section-title">
-                                <h2>Live Integrated Feed (1,008+ Options Available)</h2>
-                                <p>Ingested across top hiring platforms with real search and application endpoints customized for all 12 engineering disciplines.</p>
+                            {/* ── V4 FEATURE 1: Hero Banner Carousel ── */}
+                            <div className="hero-carousel reveal visible">
+                                <img src="/images/hero_banner_1787992925134.jpg" alt="Campus Placements" />
+                                <div className="hero-overlay">
+                                    <h2 style={{ fontSize: '2.5rem', marginBottom: '0.5rem', fontWeight: 800, textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>Launch Your Engineering Career</h2>
+                                    <p style={{ fontSize: '1.1rem', maxWidth: '600px', opacity: 0.9, textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>Explore 2,016+ curated opportunities tailored to your branch. From exclusive internships to top-tier campus placements.</p>
+                                </div>
                             </div>
+
+                            <div className="section-title">
+                                <h2>Live Integrated Feed — 2,016 Opportunities</h2>
+                                <p>Real listings across 12 branches · 50+ companies · 12 portals · Internship, Full-Time &amp; Campus Placement</p>
+                            </div>
+
+                            {/* ── FEATURE 9: Trending Skills Widget ── */}
+                            {trendingSkills.length > 0 && (
+                                <div className="card" style={{ marginBottom: '1.5rem', padding: '1.25rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
+                                        <h3 style={{ margin: 0, padding: 0, border: 'none', fontSize: '0.9rem' }}>🔥 Trending Skills — {branchFilter === 'all' ? 'All Branches' : branchNamesMap[branchFilter]}</h3>
+                                        <span className="badge" style={{ fontSize: '0.7rem' }}>Live demand</span>
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                        {trendingSkills.map(([skill, count]) => (
+                                            <div key={skill} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                <span style={{ width: 130, fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-heading)', flexShrink: 0 }}>{skill}</span>
+                                                <div style={{ flex: 1, height: 8, background: 'var(--border-light)', borderRadius: 4, overflow: 'hidden' }}>
+                                                    <div style={{
+                                                        height: '100%',
+                                                        width: `${(count / maxSkillFreq) * 100}%`,
+                                                        background: 'linear-gradient(90deg, var(--primary), var(--accent))',
+                                                        borderRadius: 4,
+                                                        transition: 'width 0.8s cubic-bezier(0.4,0,0.2,1)'
+                                                    }} />
+                                                </div>
+                                                <span style={{ fontSize: '0.72rem', color: 'var(--text-main)', width: 40, textAlign: 'right' }}>{count}×</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* ── FEATURE 10: Surprise Me ── */}
+                            <div style={{ marginBottom: '1.25rem', display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                <button
+                                    className="btn"
+                                    style={{ background: 'linear-gradient(135deg, #f59e0b, #ef4444)', boxShadow: '0 4px 16px rgba(245,158,11,0.35)' }}
+                                    onClick={runSurprise}
+                                >
+                                    🎲 Surprise Me!
+                                </button>
+                                {showSurprise && surpriseJobs.length > 0 && (
+                                    <span style={{ fontSize: '0.82rem', color: 'var(--text-main)' }}>
+                                        ✨ Here are 3 high-match picks just for you!
+                                        <button onClick={() => setShowSurprise(false)} style={{ marginLeft: 8, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', fontSize: '0.8rem' }}>✕ Clear</button>
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Surprise results */}
+                            {showSurprise && surpriseJobs.length > 0 && (
+                                <div className="grid-3" style={{ marginBottom: '1rem' }}>
+                                    {surpriseJobs.map(item => {
+                                        const m = calculatePrecisionMatch(candidateCV, item);
+                                        return (
+                                            <div key={item.id} className="card" style={{ border: '2px solid #f59e0b', background: 'linear-gradient(135deg, #fffbeb, white)' }}>
+                                                <div>
+                                                    <h3 style={{ fontSize: '1rem' }}>
+                                                        🎲 {item.title}
+                                                        <span className="badge pass">{m.matchPercentage}% Fit</span>
+                                                    </h3>
+                                                    <p style={{ fontSize: '0.83rem', color: 'var(--text-main)' }}><strong>{item.company}</strong> · {item.location}</p>
+                                                    <p style={{ fontSize: '0.8rem', margin: '0.4rem 0' }}>₹{item.stipend.toLocaleString('en-IN')}/mo · Min CGPA {item.minCGPA}</p>
+                                                </div>
+                                                <div className="btn-group">
+                                                    {/* Tracker removed */}
+                                                    <a href={item.applyUrl} target="_blank" rel="noopener noreferrer" className="btn">Apply ↗</a>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
 
                             <div className="toolbar">
                                 <input 
@@ -915,66 +1462,60 @@ export default function Home() {
                                         const badgeClass = matchData.matchPercentage >= 80 ? "pass" : (matchData.matchPercentage >= 60 ? "warn" : "fail");
                                         const typeBadgeClass = item.type === 'Internship' ? 'type-badge-internship' : item.type === 'Full-Time' ? 'type-badge-fulltime' : 'type-badge-placement';
                                         const typeEmoji = item.type === 'Internship' ? '🎓' : item.type === 'Full-Time' ? '💼' : '🏛️';
+                                        const isBookmarked = bookmarks.has(item.id);
                                         return (
-                                            <div key={item.id} className="card">
-                                                <div>
-                                                    <h3 style={{ fontSize: '1.05rem' }}>
-                                                        <span>{item.title}</span>
-                                                        <span className={`badge ${badgeClass}`}>{matchData.matchPercentage}% Fit</span>
-                                                    </h3>
-                                                    <p style={{ fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '0.4rem' }}>
-                                                        <strong style={{ color: 'var(--text-heading)' }}>{item.company}</strong> • {item.location}
-                                                        &nbsp;<span className={`badge ${typeBadgeClass}`} style={{ fontSize: '0.7rem' }}>{typeEmoji} {item.type}</span>
-                                                        &nbsp;<span className="badge" style={{ background: '#e0f2fe', color: 'var(--accent)' }}>{item.sourcePortal}</span>
-                                                        {item.alumCount > 0 && (
-                                                            <span className="badge alum" style={{ marginLeft: '0.4rem', fontSize: '0.7rem' }}>
-                                                                🔥 {item.alumCount} Alumni here
-                                                            </span>
-                                                        )}
-                                                    </p>
-                                                    <p style={{ fontSize: '0.8rem', color: 'var(--text-main)', marginBottom: '0.5rem' }}>
-                                                        <strong>Branch:</strong> <span className="badge">{item.branchTitle}</span>
-                                                    </p>
-                                                    <p style={{ fontSize: '0.85rem', color: 'var(--text-heading)', marginBottom: '0.5rem', lineHeight: 1.4 }}>
-                                                        {item.description}
-                                                    </p>
-                                                    <p style={{ fontSize: '0.85rem', marginBottom: '0.5rem' }}>
-                                                        <strong>Comp:</strong> ₹{item.stipend.toLocaleString('en-IN')}/mo • <strong>Min CGPA:</strong> {item.minCGPA}
-                                                    </p>
+                                            <div key={item.id} className="card" style={{ position: 'relative' }}>
+                                                {/* Bookmark button */}
+                                                <button
+                                                    onClick={() => toggleBookmark(item.id)}
+                                                    title={isBookmarked ? 'Remove bookmark' : 'Bookmark this job'}
+                                                    style={{
+                                                        position: 'absolute', top: 12, right: 12,
+                                                        background: 'none', border: 'none', cursor: 'pointer',
+                                                        fontSize: '1.2rem', transition: 'transform 0.2s',
+                                                        transform: isBookmarked ? 'scale(1.2)' : 'scale(1)'
+                                                    }}
+                                                >{isBookmarked ? '⭐' : '☆'}</button>
 
-                                                    <div style={{ margin: '0.5rem 0' }}>
-                                                        <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>CV Match Analysis:</span>
-                                                        <div className="tag-list">
-                                                            {matchData.matchedSkills.map(s => (
-                                                                <span key={s} className="tag" style={{ background: '#dcfce7', color: '#047857', borderColor: '#a7f3d0' }}>
-                                                                    ✓ {s}
-                                                                </span>
-                                                            ))}
-                                                            {matchData.missingSkills.map(s => (
-                                                                <span key={s} className="tag" style={{ background: '#fee2e2', color: '#b91c1c', borderColor: '#fecaca' }}>
-                                                                    ✕ {s}
-                                                                </span>
-                                                            ))}
-                                                        </div>
+                                                <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                                                    {/* V4 FEATURE: Company Logo */}
+                                                    <div style={{ width: 48, height: 48, background: 'var(--bg-body)', borderRadius: 12, overflow: 'hidden', flexShrink: 0, border: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                        <img src="/images/company_logo_placeholder_1787993020840.jpg" alt="Logo" style={{ width: '80%', height: '80%', objectFit: 'contain' }} />
+                                                    </div>
+                                                    <div style={{ flex: 1 }}>
+                                                        <h3 style={{ fontSize: '1rem', paddingRight: '2rem' }}>
+                                                            <span>{item.title}</span>
+                                                            <span className={`badge ${badgeClass}`} style={{ marginLeft: 8 }}>{matchData.matchPercentage}% Fit</span>
+                                                        </h3>
+                                                        <p style={{ fontSize: '0.83rem', color: 'var(--text-main)', marginBottom: '0.4rem' }}>
+                                                            <strong style={{ color: 'var(--text-heading)' }}>{item.company}</strong> · {item.location}<br />
+                                                            <span className={`badge ${typeBadgeClass}`} style={{ fontSize: '0.7rem', marginTop: '0.3rem' }}>{typeEmoji} {item.type}</span>
+                                                            {' '}<span className="badge" style={{ background: '#e0f2fe', color: 'var(--accent)', fontSize: '0.7rem' }}>{item.sourcePortal}</span>
+                                                            {item.alumCount > 0 && <span className="badge alum" style={{ fontSize: '0.7rem' }}>🔥 {item.alumCount} Alumni</span>}
+                                                        </p>
                                                     </div>
                                                 </div>
+                                                
+                                                <p style={{ fontSize: '0.82rem', color: 'var(--text-heading)', marginBottom: '0.5rem', lineHeight: 1.4, marginTop: '0.5rem' }}>{item.description}</p>
+                                                <p style={{ fontSize: '0.83rem', marginBottom: '0.5rem' }}>
+                                                    <strong>Comp:</strong> ₹{item.stipend.toLocaleString('en-IN')}/mo · <strong>Min CGPA:</strong> {item.minCGPA}
+                                                </p>
+                                                    <div className="tag-list" style={{ margin: '0.4rem 0 0.6rem' }}>
+                                                        {matchData.matchedSkills.map(s => (
+                                                            <span key={s} className="tag" style={{ background: '#dcfce7', color: '#047857', borderColor: '#a7f3d0', fontSize: '0.72rem' }}>✓ {s}</span>
+                                                        ))}
+                                                        {matchData.missingSkills.map(s => (
+                                                            <span key={s} className="tag" style={{ background: '#fee2e2', color: '#b91c1c', borderColor: '#fecaca', fontSize: '0.72rem' }}>✕ {s}</span>
+                                                        ))}
+                                                    </div>
                                                 <div className="btn-group">
+                                                    <button className="btn btn-outline" style={{ fontSize: '0.78rem', padding: '0.45rem 0.7rem' }} onClick={() => { setGapJob(item); }}>📋 Skills Gap</button>
                                                     {item.alumCount > 0 ? (
-                                                        <button 
-                                                            className="btn btn-outline" 
-                                                            style={{ color: 'var(--primary-dark)', borderColor: '#c7d2fe', background: '#e0e7ff' }}
-                                                            onClick={() => setReferralModalTarget({ company: item.company })}
-                                                        >
-                                                            Request Referral
-                                                        </button>
+                                                        <button className="btn btn-outline" style={{ fontSize: '0.78rem', padding: '0.45rem 0.7rem', color: 'var(--primary-dark)', borderColor: '#c7d2fe', background: '#e0e7ff' }} onClick={() => setReferralModalTarget({ company: item.company })}>Referral</button>
                                                     ) : (
-                                                        <button className="btn btn-outline" onClick={() => setDetailsModalJob(item)}>
-                                                            Inspect Score
-                                                        </button>
+                                                        <button className="btn btn-outline" style={{ fontSize: '0.78rem', padding: '0.45rem 0.7rem' }} onClick={() => setDetailsModalJob(item)}>Score</button>
                                                     )}
-                                                    <a href={item.applyUrl} target="_blank" rel="noopener noreferrer" className="btn">
-                                                        Apply ↗
-                                                    </a>
+                                                    <a href={item.applyUrl} target="_blank" rel="noopener noreferrer" className="btn" style={{ fontSize: '0.78rem', padding: '0.45rem 0.8rem' }}>Apply ↗</a>
                                                 </div>
                                             </div>
                                         );
@@ -1465,8 +2006,6 @@ export default function Home() {
                             </div>
                         </section>
                     )}
-                </div>
-            </main>
 
             {/* ===== FLOATING AI CHATBOT WIDGET ===== */}
             <div id="ai-chat-widget">
@@ -1624,7 +2163,7 @@ export default function Home() {
                             Sending candidate portfolio summary to <strong style={{ color: 'var(--primary)' }}>{referralModalTarget.alumName ? referralModalTarget.alumName : `an Alumnus at ${referralModalTarget.company}`}</strong>.
                         </p>
                         
-                        <div style={{ background: '#f8fafc', border: '1.5px solid var(--border-light)', padding: '1.25rem', borderRadius: '10px', marginBottom: '1.25rem' }}>
+                        <div style={{ background: 'rgba(255,255,255,0.05)', border: '1.5px solid var(--border-light)', padding: '1.25rem', borderRadius: '10px', marginBottom: '1.25rem' }}>
                             <p style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8', marginBottom: '0.65rem', letterSpacing: '0.5px' }}>Candidate Payload Verification</p>
                             <div style={{ fontFamily: 'monospace', fontSize: '0.85rem', color: 'var(--text-main)', lineHeight: 1.6 }}>
                                 <div><strong style={{ color: 'var(--text-heading)' }}>Student ID:</strong> {authUser.uniqueId}</div>
@@ -1654,6 +2193,621 @@ export default function Home() {
                     </div>
                 </div>
             )}
+
+            {/* ── FEATURE 3: SAVED JOBS PAGE ── */}
+            {isLoggedIn && activeView === 'saved-page' && (
+                <section className="page-view active-view">
+                    <div className="section-title">
+                        <h2>⭐ Saved Jobs ({savedJobs.length})</h2>
+                        <p>Your bookmarked opportunities, ready to apply whenever you are.</p>
+                    </div>
+                    {savedJobs.length === 0 ? (
+                        <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
+                            <p style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>☆</p>
+                            <p style={{ color: 'var(--text-main)' }}>No saved jobs yet. Click the ☆ on any job card to bookmark it!</p>
+                        </div>
+                    ) : (
+                        <div className="grid-3">
+                            {savedJobs.map(item => {
+                                const m = calculatePrecisionMatch(candidateCV, item);
+                                const bc = m.matchPercentage >= 80 ? 'pass' : m.matchPercentage >= 60 ? 'warn' : 'fail';
+                                return (
+                                    <div key={item.id} className="card">
+                                        <div>
+                                            <h3 style={{ fontSize: '1rem' }}>{item.title} <span className={`badge ${bc}`}>{m.matchPercentage}%</span></h3>
+                                            <p style={{ fontSize: '0.83rem', color: 'var(--text-main)', marginBottom: '0.4rem' }}><strong>{item.company}</strong> · {item.location}</p>
+                                            <p style={{ fontSize: '0.8rem' }}>₹{item.stipend.toLocaleString('en-IN')}/mo · CGPA {item.minCGPA}+</p>
+                                        </div>
+                                        <div className="btn-group">
+                                            <button className="btn btn-outline" style={{ fontSize: '0.78rem' }} onClick={() => toggleBookmark(item.id)}>🗑️ Remove</button>
+                                            {/* Tracker removed */}
+                                            <a href={item.applyUrl} target="_blank" rel="noopener noreferrer" className="btn" style={{ fontSize: '0.78rem' }}>Apply ↗</a>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </section>
+            )}
+
+            {/* ── FEATURE 4: APPLICATION TRACKER + SWIPE-TO-APPLY (UNIFIED PAGE) ── */}
+
+
+
+            {/* ── FEATURE 8: 90-DAY ROADMAP ── */}
+            {isLoggedIn && activeView === 'roadmap-page' && (
+                <section className="page-view active-view">
+                    <div className="section-title">
+                        <h2>🗺️ 90-Day Placement Prep Roadmap</h2>
+                        <p>A structured week-by-week action plan tailored to your engineering branch.</p>
+                    </div>
+                    <div className="card" style={{ marginBottom: '1.5rem', padding: '1.25rem 1.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                            <select value={roadmapBranch} onChange={e => { setRoadmapBranch(e.target.value); }} style={{ width: 280 }}>
+                                {Object.entries(branchNamesMap).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                            </select>
+                            <div style={{ flex: 1, minWidth: 200 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-main)', marginBottom: '0.3rem' }}>
+                                    <span>Progress</span><span><strong style={{ color: 'var(--primary)' }}>{completedTasks}</strong>/{totalTasks} tasks · {roadmapPct}%</span>
+                                </div>
+                                <div style={{ height: 10, background: 'var(--border-light)', borderRadius: 5, overflow: 'hidden' }}>
+                                    <div style={{ height: '100%', width: `${roadmapPct}%`, background: 'linear-gradient(90deg, var(--primary), var(--accent))', borderRadius: 5, transition: 'width 0.6s ease' }} />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        {(roadmaps[roadmapBranch] || roadmaps['cse']).map(({ week, tasks }, wi) => (
+                            <div key={week} className="card" style={{ padding: '1.25rem' }}>
+                                <h3 style={{ marginBottom: '0.75rem', padding: 0, border: 'none', fontSize: '0.95rem', color: 'var(--primary)' }}>📅 {week}</h3>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                    {tasks.map((task, ti) => {
+                                        const key = `${roadmapBranch}-${wi}-${ti}`;
+                                        const done = roadmapChecks.has(key);
+                                        return (
+                                            <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', cursor: 'pointer', padding: '0.45rem 0.5rem', borderRadius: 8, transition: 'background 0.15s', background: done ? '#dcfce7' : 'transparent' }}>
+                                                <input type="checkbox" checked={done} onChange={() => toggleRoadmapCheck(key)} style={{ width: 16, height: 16, accentColor: 'var(--primary)' }} />
+                                                <span style={{ fontSize: '0.85rem', color: done ? '#047857' : 'var(--text-heading)', textDecoration: done ? 'line-through' : 'none', transition: 'all 0.2s' }}>{task}</span>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            {/* ── FEATURE 7: COMPANY LEADERBOARD (ENHANCED) ── */}
+            {isLoggedIn && activeView === 'leaderboard-page' && (
+                <section className="page-view active-view">
+                    <div className="section-title">
+                        <h2>🏆 Top 20 Company Leaderboard</h2>
+                        <p>Companies ranked by job listings, alumni network strength, and average compensation.</p>
+                    </div>
+                    {/* Controls */}
+                    <div className="card" style={{ padding: '1rem 1.25rem', marginBottom: '1.25rem', flexDirection: 'row', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', flex: 1 }}>
+                            {['all', 'cse', 'ai-ds', 'ece', 'eee', 'mech', 'civil'].map(b => (
+                                <button key={b} onClick={() => setLeaderboardBranch(b)} style={{ padding: '0.35rem 0.8rem', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, background: leaderboardBranch === b ? 'var(--primary)' : 'var(--border-light)', color: leaderboardBranch === b ? 'white' : 'var(--text-main)', transition: 'all 0.15s' }}>
+                                    {b === 'all' ? 'All Branches' : (branchNamesMap as any)[b]?.split(' ')[0] || b.toUpperCase()}
+                                </button>
+                            ))}
+                        </div>
+                        <select value={leaderboardSort} onChange={e => setLeaderboardSort(e.target.value as any)} style={{ fontSize: '0.82rem', padding: '0.35rem 0.65rem', borderRadius: 8, border: '1.5px solid var(--border-light)', color: 'var(--text-heading)', fontWeight: 600 }}>
+                            <option value="score">🏆 Sort by Rank Score</option>
+                            <option value="jobs">💼 Sort by Job Count</option>
+                            <option value="alums">🤝 Sort by Alumni Count</option>
+                            <option value="salary">💰 Sort by Avg Salary</option>
+                        </select>
+                    </div>
+
+                    <div className="card">
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            {[...leaderboard]
+                                .sort((a, b) => {
+                                    if (leaderboardSort === 'jobs') return b.jobs - a.jobs;
+                                    if (leaderboardSort === 'alums') return b.alums - a.alums;
+                                    if (leaderboardSort === 'salary') return b.avgStipend - a.avgStipend;
+                                    return (b.jobs + b.alums * 3) - (a.jobs + a.alums * 3);
+                                })
+                                .map((co, idx) => {
+                                    // Tier classification
+                                    const tier = co.jobs > 80 ? {label:'Tier 1', color:'#4f46e5', bg:'#eef2ff'} : co.jobs > 40 ? {label:'Tier 2', color:'#0ea5e9', bg:'#f0f9ff'} : co.alums > 5 ? {label:'Core', color:'#10b981', bg:'#f0fdf4'} : {label:'Growing', color:'#f59e0b', bg:'#fffbeb'};
+                                    return (
+                                        <div key={co.name} className="item-row" style={{ padding: '0.85rem 1rem' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flex: 1 }}>
+                                                <span style={{
+                                                    width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                                                    background: idx === 0 ? 'linear-gradient(135deg, #fbbf24, #f59e0b)' : idx === 1 ? 'linear-gradient(135deg, #94a3b8, #64748b)' : idx === 2 ? 'linear-gradient(135deg, #d97706, #b45309)' : 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
+                                                    color: idx < 3 ? 'white' : 'var(--text-main)',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '0.88rem'
+                                                }}>#{idx + 1}</span>
+                                                <div style={{ flex: 1 }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                        <div style={{ fontWeight: 700, color: 'var(--text-heading)', fontSize: '0.95rem' }}>{co.name}</div>
+                                                        <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: tier.bg, color: tier.color, border: `1px solid ${tier.color}40` }}>{tier.label}</span>
+                                                        {co.jobs > 50 && <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: '#dcfce7', color: '#047857', border: '1px solid #a7f3d040' }}>🟢 Hiring Now</span>}
+                                                    </div>
+                                                    <div style={{ width: '100%', height: 5, background: 'var(--border-light)', borderRadius: 3, marginTop: '0.35rem', overflow: 'hidden' }}>
+                                                        <div style={{ height: '100%', width: `${(co.jobs / maxJobs) * 100}%`, background: 'linear-gradient(90deg, var(--primary), var(--accent))', borderRadius: 3, transition: 'width 0.8s ease' }} />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '1.25rem', fontSize: '0.78rem', color: 'var(--text-main)', flexShrink: 0 }}>
+                                                <div style={{ textAlign: 'center' }}>
+                                                    <div style={{ fontWeight: 800, color: 'var(--primary)', fontSize: '1rem' }}>{co.jobs}</div>
+                                                    <div style={{ fontSize: '0.65rem' }}>Jobs</div>
+                                                </div>
+                                                <div style={{ textAlign: 'center' }}>
+                                                    <div style={{ fontWeight: 800, color: '#f59e0b', fontSize: '1rem' }}>{co.alums}</div>
+                                                    <div style={{ fontSize: '0.65rem' }}>Alumni</div>
+                                                </div>
+                                                <div style={{ textAlign: 'center' }}>
+                                                    <div style={{ fontWeight: 800, color: 'var(--success)', fontSize: '1rem' }}>₹{(co.avgStipend / 1000).toFixed(0)}K</div>
+                                                    <div style={{ fontSize: '0.65rem' }}>Avg/mo</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                        </div>
+                    </div>
+                </section>
+            )}
+
+
+
+            {/* ── HAI TOOL: AI MOCK INTERVIEW (Real Camera + Speech + Gemini) ── */}
+
+
+            {/* ── FRAUD DETECTOR FEATURE ── */}
+            {isLoggedIn && activeView === 'fraud-page' && (() => {
+                const runFraudCheck = async () => {
+                    setFraudLoading(true);
+                    setFraudResult(null);
+                    try {
+                        let prompt = '';
+                        if (fraudMode === 'paste') {
+                            prompt = `You are a fraud detection expert for Indian internship/job/placement offers. Analyze this text and return ONLY a JSON object (no extra text): {"score": <trust score 0-100>, "verdict": "<Safe|Suspicious|Likely Fraud>", "flags": [<list of red flag strings found>], "tips": [<2-3 actionable verification tips>]}\n\nText to analyze:\n"${fraudText}"`;
+                        } else {
+                            prompt = `You are a fraud detection expert for Indian internship/job offers. Evaluate this offer and return ONLY a JSON object: {"score": <trust score 0-100>, "verdict": "<Safe|Suspicious|Likely Fraud>", "flags": [<red flag strings>], "tips": [<verification tips>]}\n\nOffer details:\nCompany: ${fraudCompany}\nRole: ${fraudRole}\nSalary/Stipend: ${fraudSalary}\nRecruiter email: ${fraudEmail}`;
+                        }
+                        const res = await fetch('/api/ai-chat', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ message: prompt, history: [] })
+                        });
+                        const data = await res.json();
+                        try {
+                            const cleaned = data.reply.replace(/```json|```/g, '').trim();
+                            const parsed = JSON.parse(cleaned);
+                            setFraudResult(parsed);
+                        } catch (e) {
+                            // Parse failure: generate a basic result
+                            const isHighRisk = (fraudText + fraudEmail + fraudSalary).toLowerCase().includes('gmail') || fraudSalary > '80000';
+                            setFraudResult({ score: isHighRisk ? 28 : 65, verdict: isHighRisk ? 'Suspicious' : 'Needs Verification', flags: ['Unable to parse full analysis - please review manually'], tips: ['Verify on official company website', 'Check company on LinkedIn', 'Call official company number'] });
+                        }
+                    } catch (e) {
+                        setFraudResult({ score: 50, verdict: 'Needs Verification', flags: ['Analysis failed - check your connection'], tips: ['Verify company on official website', 'Check LinkedIn for job posting', 'Call company HR directly'] });
+                    }
+                    setFraudLoading(false);
+                };
+
+                const scoreColor = fraudResult ? (fraudResult.score >= 70 ? '#10b981' : fraudResult.score >= 40 ? '#f59e0b' : '#ef4444') : '#94a3b8';
+                const verdictBg = fraudResult ? (fraudResult.score >= 70 ? '#f0fdf4' : fraudResult.score >= 40 ? '#fffbeb' : '#fef2f2') : 'white';
+
+                return (
+                    <section className="page-view active-view">
+                        <div className="section-title">
+                            <h2>🛡️ Internship & Job Fraud Detector</h2>
+                            <p>Paste an offer letter, email, or enter company details to get an AI-powered trust score and red flag analysis.</p>
+                        </div>
+
+                        {/* Common red flags info */}
+                        <div className="card" style={{ background: 'linear-gradient(135deg, #1e1b4b, #2d1b69)', color: 'white', border: 'none', marginBottom: '1.25rem', padding: '1.25rem 1.5rem' }}>
+                            <h4 style={{ color: '#a5b4fc', marginBottom: '0.75rem', fontSize: '0.9rem' }}>🚨 Common Fraud Red Flags</h4>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                {['Asks for money/fee', 'Gmail/Yahoo recruiter email', 'Salary too good to be true', 'No official website', 'WhatsApp-only hiring', 'Asks for Aadhar/PAN before joining', 'Vague job description', 'Company name misspelled'].map(flag => (
+                                    <span key={flag} style={{ background: 'rgba(239,68,68,0.2)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.3)', padding: '3px 10px', borderRadius: 20, fontSize: '0.75rem', fontWeight: 600 }}>🚩 {flag}</span>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="grid-2">
+                            <div className="card">
+                                {/* Mode toggle */}
+                                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', background: 'var(--bg-body)', padding: '0.3rem', borderRadius: 10, width: 'fit-content' }}>
+                                    <button onClick={() => setFraudMode('paste')} style={{ padding: '0.45rem 1.1rem', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', background: fraudMode === 'paste' ? 'var(--primary)' : 'transparent', color: fraudMode === 'paste' ? 'white' : 'var(--text-main)' }}>📋 Paste Text</button>
+                                    <button onClick={() => setFraudMode('manual')} style={{ padding: '0.45rem 1.1rem', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', background: fraudMode === 'manual' ? 'var(--primary)' : 'transparent', color: fraudMode === 'manual' ? 'white' : 'var(--text-main)' }}>📝 Manual Entry</button>
+                                </div>
+
+                                {fraudMode === 'paste' ? (
+                                    <div className="form-group">
+                                        <label>Paste offer letter / email / message</label>
+                                        <textarea rows={8} value={fraudText} onChange={e => setFraudText(e.target.value)} placeholder="Paste the full offer letter, job posting, email, or WhatsApp message here..." style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: '0.85rem', padding: '0.75rem', border: '1.5px solid var(--border-light)', borderRadius: 8, color: 'var(--text-heading)' }} />
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="form-group"><label>Company Name</label><input type="text" value={fraudCompany} onChange={e => setFraudCompany(e.target.value)} placeholder="e.g. TechSolutions India Pvt Ltd" /></div>
+                                        <div className="form-group"><label>Role / Position</label><input type="text" value={fraudRole} onChange={e => setFraudRole(e.target.value)} placeholder="e.g. Software Engineer Intern" /></div>
+                                        <div className="form-group"><label>Salary / Stipend Offered</label><input type="text" value={fraudSalary} onChange={e => setFraudSalary(e.target.value)} placeholder="e.g. ₹50,000/month" /></div>
+                                        <div className="form-group"><label>Recruiter Email Address</label><input type="email" value={fraudEmail} onChange={e => setFraudEmail(e.target.value)} placeholder="e.g. hr@techsolutions.com" /></div>
+                                    </>
+                                )}
+
+                                <button className="btn" style={{ width: '100%', padding: '0.85rem', marginTop: '0.5rem', background: 'linear-gradient(135deg, #dc2626, #7c3aed)' }} onClick={runFraudCheck} disabled={fraudLoading || (fraudMode === 'paste' ? !fraudText.trim() : !fraudCompany.trim())}>
+                                    {fraudLoading ? '⏳ Analyzing with Gemini AI...' : '🛡️ Run Fraud Analysis'}
+                                </button>
+                            </div>
+
+                            <div>
+                                {!fraudResult && !fraudLoading && (
+                                    <div className="card" style={{ textAlign: 'center', padding: '3rem 1.5rem' }}>
+                                        <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>🛡️</div>
+                                        <h3 style={{ marginBottom: '0.5rem' }}>AI Trust Analysis</h3>
+                                        <p style={{ color: 'var(--text-main)', fontSize: '0.88rem' }}>Paste or enter offer details and run analysis to get your trust score.</p>
+                                    </div>
+                                )}
+                                {fraudLoading && (
+                                    <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
+                                        <div style={{ fontSize: '2.5rem', marginBottom: '1rem', animation: 'spin360 1s linear infinite', display: 'inline-block' }}>🔍</div>
+                                        <p style={{ color: 'var(--text-main)' }}>Analyzing with Gemini AI...</p>
+                                    </div>
+                                )}
+                                {fraudResult && (
+                                    <>
+                                        <div className="card" style={{ background: verdictBg, border: `2px solid ${scoreColor}40`, textAlign: 'center', padding: '1.5rem', marginBottom: '1rem' }}>
+                                            <div style={{ fontSize: '4rem', fontWeight: 900, color: scoreColor, lineHeight: 1 }}>{fraudResult.score}</div>
+                                            <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', margin: '0.25rem 0' }}>Trust Score / 100</div>
+                                            <div style={{ height: 10, background: 'var(--border-light)', borderRadius: 5, overflow: 'hidden', margin: '0.75rem 0' }}>
+                                                <div style={{ height: '100%', width: `${fraudResult.score}%`, background: `linear-gradient(90deg, #ef4444, ${scoreColor})`, borderRadius: 5, transition: 'width 1s ease' }} />
+                                            </div>
+                                            <span style={{ fontWeight: 800, fontSize: '1.1rem', color: scoreColor, padding: '0.35rem 1.25rem', background: `${scoreColor}20`, borderRadius: 20, border: `1.5px solid ${scoreColor}40` }}>
+                                                {fraudResult.verdict}
+                                            </span>
+                                        </div>
+                                        {fraudResult.flags.length > 0 && (
+                                            <div className="card" style={{ background: '#fef2f2', border: '1.5px solid #fecaca', marginBottom: '1rem', padding: '1rem 1.25rem' }}>
+                                                <h4 style={{ color: '#b91c1c', marginBottom: '0.65rem', fontSize: '0.9rem' }}>🚩 Red Flags Detected</h4>
+                                                <ul style={{ paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                                                    {fraudResult.flags.map((f, i) => <li key={i} style={{ fontSize: '0.85rem', color: '#7f1d1d' }}>{f}</li>)}
+                                                </ul>
+                                            </div>
+                                        )}
+                                        <div className="card" style={{ background: '#f0fdf4', border: '1.5px solid #a7f3d0', padding: '1rem 1.25rem' }}>
+                                            <h4 style={{ color: '#065f46', marginBottom: '0.65rem', fontSize: '0.9rem' }}>✅ Verification Tips</h4>
+                                            <ul style={{ paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                                                {fraudResult.tips.map((t, i) => <li key={i} style={{ fontSize: '0.85rem', color: '#064e3b' }}>{t}</li>)}
+                                            </ul>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </section>
+                );
+            })()}
+            {isLoggedIn && activeView === 'cold-email-page' && (
+                <section className="page-view active-view">
+                    <div className="section-title">
+                        <h2>📧 Cold Email & DM Generator</h2>
+                        <p>Generate highly personalized outreach messages using your profile data to bypass the application queue.</p>
+                    </div>
+                    <div className="card" style={{ maxWidth: '800px', margin: '0 auto' }}>
+                        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.25rem' }}>
+                            <input type="text" value={ceCompany} onChange={(e) => setCeCompany(e.target.value)} placeholder="Target Company (e.g. Google)" style={{ flex: 1 }} />
+                            <input type="text" value={ceRole} onChange={(e) => setCeRole(e.target.value)} placeholder="Role (e.g. SDE Intern)" style={{ flex: 1 }} />
+                        </div>
+                        <button className="btn" style={{ width: '100%', marginBottom: '1.5rem' }} onClick={handleGenerateEmail} disabled={ceLoading}>{ceLoading ? '✨ Generating...' : '✨ Generate Message'}</button>
+                        {ceOutput && (
+                            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', whiteSpace: 'pre-wrap', border: '1px solid var(--border-light)', fontSize: '0.9rem' }}>
+                                {ceOutput}
+                            </div>
+                        )}
+                    </div>
+                </section>
+            )}
+
+            {isLoggedIn && activeView === 'ats-scanner-page' && (
+                <section className="page-view active-view">
+                    <div className="section-title">
+                        <h2>🔍 ATS Resume Scanner</h2>
+                        <p>Paste a job description below. We will scan your CV profile against it to identify missing keywords.</p>
+                    </div>
+                    <div className="card" style={{ maxWidth: '900px', margin: '0 auto' }}>
+                        <textarea value={atsJd} onChange={(e) => setAtsJd(e.target.value)} placeholder="Paste Job Description here..." style={{ minHeight: '150px', marginBottom: '1rem', width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-light)' }}></textarea>
+                        <button className="btn" style={{ width: '100%', marginBottom: '1.5rem' }} onClick={handleScanATS} disabled={atsLoading}>{atsLoading ? 'Scanning...' : 'Scan Job Description'}</button>
+                        {atsResult && (
+                            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', whiteSpace: 'pre-wrap', border: '1px solid var(--border-light)', fontSize: '0.9rem' }}>
+                                {atsResult}
+                            </div>
+                        )}
+                    </div>
+                </section>
+            )}
+
+            {isLoggedIn && activeView === 'hidden-market-page' && (
+                <section className="page-view active-view">
+                    <div className="section-title">
+                        <h2>🕵️ Hidden Market Explorer</h2>
+                        <p>Aggregated opportunities from exclusive Discord servers, Telegram groups, and Twitter hashtags.</p>
+                    </div>
+                    <div className="grid-2">
+                        {[
+                            { source: 'Discord (cs-majors)', title: 'Stripe Early Career 2026', link: '#' },
+                            { source: 'Telegram (Off-campus India)', title: 'Amazon SDE1 Hiring Drive', link: '#' },
+                            { source: 'Twitter (#techhiring)', title: 'Notion is looking for product interns!', link: '#' },
+                            { source: 'Discord (ReactIndia)', title: 'Frontend Dev at stealth startup', link: '#' }
+                        ].map((j, i) => (
+                            <div key={i} className="card" style={{ borderLeft: '4px solid var(--primary)' }}>
+                                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--primary)', marginBottom: '0.25rem', textTransform: 'uppercase' }}>{j.source}</div>
+                                <h3 style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>{j.title}</h3>
+                                <button className="btn btn-outline" style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}>View Source Post</button>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            {isLoggedIn && activeView === 'offer-comparator-page' && (
+                <section className="page-view active-view">
+                    <div className="section-title">
+                        <h2>⚖️ Offer Comparator</h2>
+                        <p>Compare two job offers side-by-side (Base, Equity, Relocation) to make the best decision.</p>
+                    </div>
+                    <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+                        <div className="card" style={{ flex: 1, minWidth: '300px' }}>
+                            <h3 style={{ borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>Offer A</h3>
+                            <input type="text" value={ocCompanyA} onChange={(e) => setOcCompanyA(e.target.value)} placeholder="Company Name" style={{ marginBottom: '0.5rem' }} />
+                            <input type="number" value={ocBaseA} onChange={(e) => setOcBaseA(e.target.value)} placeholder="Base Salary (LPA)" style={{ marginBottom: '0.5rem' }} />
+                            <input type="number" value={ocBonusA} onChange={(e) => setOcBonusA(e.target.value)} placeholder="Joining Bonus" style={{ marginBottom: '0.5rem' }} />
+                            <input type="text" value={ocLocA} onChange={(e) => setOcLocA(e.target.value)} placeholder="Location (for Cost of Living)" style={{ marginBottom: '0.5rem' }} />
+                        </div>
+                        <div className="card" style={{ flex: 1, minWidth: '300px' }}>
+                            <h3 style={{ borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>Offer B</h3>
+                            <input type="text" value={ocCompanyB} onChange={(e) => setOcCompanyB(e.target.value)} placeholder="Company Name" style={{ marginBottom: '0.5rem' }} />
+                            <input type="number" value={ocBaseB} onChange={(e) => setOcBaseB(e.target.value)} placeholder="Base Salary (LPA)" style={{ marginBottom: '0.5rem' }} />
+                            <input type="number" value={ocBonusB} onChange={(e) => setOcBonusB(e.target.value)} placeholder="Joining Bonus" style={{ marginBottom: '0.5rem' }} />
+                            <input type="text" value={ocLocB} onChange={(e) => setOcLocB(e.target.value)} placeholder="Location (for Cost of Living)" style={{ marginBottom: '0.5rem' }} />
+                        </div>
+                    </div>
+                    <button className="btn" style={{ marginTop: '1.5rem', width: '100%', maxWidth: '400px', display: 'block', marginInline: 'auto' }} onClick={handleCompareOffers} disabled={ocLoading}>{ocLoading ? 'Comparing...' : 'Compare Offers'}</button>
+                    {ocResult && (
+                        <div style={{ marginTop: '1.5rem', background: '#f8fafc', padding: '1rem', borderRadius: '8px', whiteSpace: 'pre-wrap', border: '1px solid var(--border-light)', fontSize: '0.9rem' }}>
+                            {ocResult}
+                        </div>
+                    )}
+                </section>
+            )}
+
+            {isLoggedIn && activeView === 'interview-predictor-page' && (
+                <section className="page-view active-view">
+                    <div className="section-title">
+                        <h2>🔮 Interview Predictor</h2>
+                        <p>Based on recent interview experiences, here are the most likely questions for top companies.</p>
+                    </div>
+                    <div className="card" style={{ maxWidth: '800px', margin: '0 auto' }}>
+                        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
+                            <select value={ipCompany} onChange={(e) => setIpCompany(e.target.value)} style={{ flex: 1 }}>
+                                <option>Select Company</option>
+                                <option>Google (SDE)</option>
+                                <option>Microsoft (SWE)</option>
+                                <option>Amazon (SDE)</option>
+                                <option>TCS (Digital)</option>
+                                <option>Infosys (Power Programmer)</option>
+                            </select>
+                            <button className="btn" onClick={handlePredictInterview} disabled={ipLoading || !ipCompany || ipCompany === 'Select Company'}>{ipLoading ? 'Predicting...' : 'Predict Questions'}</button>
+                        </div>
+                        {ipResult.length > 0 && (
+                            <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '12px' }}>
+                                <h4 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Top Predicted Questions:</h4>
+                                <ul style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    {ipResult.map((q, i) => <li key={i}>{q}</li>)}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
+                </section>
+            )}
+
+            {isLoggedIn && activeView === 'salary-coach-page' && (
+                <section className="page-view active-view">
+                    <div className="section-title">
+                        <h2>💬 Salary Negotiation Coach</h2>
+                        <p>Never leave money on the table. Generate a tactful negotiation email script based on your offer.</p>
+                    </div>
+                    <div className="card" style={{ maxWidth: '700px', margin: '0 auto' }}>
+                        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+                            <input type="number" value={scInitial} onChange={(e) => setScInitial(e.target.value)} placeholder="Initial Offer (LPA)" style={{ flex: 1 }} />
+                            <input type="number" value={scTarget} onChange={(e) => setScTarget(e.target.value)} placeholder="Target Offer (LPA)" style={{ flex: 1 }} />
+                        </div>
+                        <textarea value={scCompeting} onChange={(e) => setScCompeting(e.target.value)} placeholder="Any competing offers? (e.g. I have 15LPA from Company X)" style={{ minHeight: '80px', marginBottom: '1rem', width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-light)' }}></textarea>
+                        <button className="btn" style={{ width: '100%', marginBottom: '1.5rem' }} onClick={handleDraftSalaryScript} disabled={scLoading}>{scLoading ? 'Drafting Script...' : 'Generate Script'}</button>
+                        {scResult && (
+                            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', whiteSpace: 'pre-wrap', border: '1px solid var(--border-light)', fontSize: '0.9rem' }}>
+                                {scResult}
+                            </div>
+                        )}
+                    </div>
+                </section>
+            )}
+
+            {isLoggedIn && activeView === 'visa-hub-page' && (
+                <section className="page-view active-view">
+                    <div className="section-title">
+                        <h2>🌐 Visa & Sponsorship Hub</h2>
+                        <p>Curated list of international roles and companies known for sponsoring visas (H1B, Tier 2, etc).</p>
+                    </div>
+                    <div className="grid-3">
+                        {[
+                            { country: '🇺🇸 USA', company: 'Meta', roles: 'Software Engineer', visa: 'H1B / L1' },
+                            { country: '🇬🇧 UK', company: 'Palantir', roles: 'Forward Deployed Eng', visa: 'Tier 2 General' },
+                            { country: '🇩🇪 Germany', company: 'Zalando', roles: 'Backend / Data', visa: 'EU Blue Card' },
+                            { country: '🇨🇦 Canada', company: 'Shopify', roles: 'Full Stack', visa: 'Global Talent Stream' }
+                        ].map((v, i) => (
+                            <div key={i} className="card">
+                                <h3 style={{ fontSize: '1.1rem', marginBottom: '0.25rem' }}>{v.company}</h3>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', marginBottom: '1rem' }}>{v.country}</div>
+                                <div style={{ fontSize: '0.85rem', marginBottom: '0.5rem' }}><strong>Roles:</strong> {v.roles}</div>
+                                <span className="badge pass">{v.visa}</span>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            {isLoggedIn && activeView === 'hackathon-board-page' && (
+                <section className="page-view active-view">
+                    <div className="section-title">
+                        <h2>🚀 Open Source & Hackathon Board</h2>
+                        <p>Build your CV by participating in live hackathons and contributing to beginner-friendly open-source issues.</p>
+                    </div>
+                    <div className="grid-2">
+                        <div className="card">
+                            <h3 style={{ borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>Upcoming Hackathons</h3>
+                            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                <li style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px' }}>
+                                    <strong>Global AI Hackathon 2026</strong><br/>
+                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-main)' }}>Starts in 2 days • $50k Prize Pool</span>
+                                </li>
+                                <li style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px' }}>
+                                    <strong>Web3 Buildathon</strong><br/>
+                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-main)' }}>Starts next week • Remote</span>
+                                </li>
+                            </ul>
+                        </div>
+                        <div className="card">
+                            <h3 style={{ borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>Good First Issues (GitHub)</h3>
+                            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                <li style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px' }}>
+                                    <strong>react/react</strong>: Fix hydration mismatch warning<br/>
+                                    <span style={{ fontSize: '0.8rem', color: 'var(--accent)', fontWeight: 600 }}>#45821 • React</span>
+                                </li>
+                                <li style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px' }}>
+                                    <strong>vercel/next.js</strong>: Update docs for edge runtime<br/>
+                                    <span style={{ fontSize: '0.8rem', color: 'var(--accent)', fontWeight: 600 }}>#10234 • Documentation</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+            )}
+
+            {isLoggedIn && activeView === 'peer-interview-page' && (
+                <section className="page-view active-view">
+                    <div className="section-title">
+                        <h2>👥 Peer Mock Interview Matcher</h2>
+                        <p>Match with students from other colleges to practice live Data Structures & Algorithms interviews.</p>
+                    </div>
+                    <div className="card" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+                        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎯</div>
+                        <h3 style={{ marginBottom: '0.5rem' }}>Ready to practice?</h3>
+                        <p style={{ color: 'var(--text-main)', marginBottom: '1.5rem', maxWidth: '400px', marginInline: 'auto' }}>We will match you with a peer who has a similar LeetCode rating for a 45-minute live mock interview.</p>
+                        <button className="btn" style={{ fontSize: '1.1rem', padding: '0.75rem 2rem' }} onClick={(e) => { e.currentTarget.innerHTML = 'Searching for peers...'; setTimeout(() => { e.currentTarget.innerHTML = 'Find a Peer Match'; alert('Match found! You are paired with Rahul from NIT Warangal. Check your email for the Google Meet link.'); }, 2000); }}>Find a Peer Match</button>
+                    </div>
+                </section>
+            )}
+
+            {isLoggedIn && activeView === 'equity-analyzer-page' && (
+                <section className="page-view active-view">
+                    <div className="section-title">
+                        <h2>📈 Startup Equity Analyzer</h2>
+                        <p>Don't get tricked by empty stock options. Calculate the real potential value of your startup ESOPs.</p>
+                    </div>
+                    <div className="card" style={{ maxWidth: '600px', margin: '0 auto' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                            <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)' }}>Number of Options</label>
+                                <input type="number" value={eaOptions} onChange={(e) => setEaOptions(e.target.value)} placeholder="e.g. 10000" />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)' }}>Strike Price ($)</label>
+                                <input type="number" step="0.01" value={eaStrike} onChange={(e) => setEaStrike(e.target.value)} placeholder="e.g. 0.50" />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)' }}>Preferred Price ($)</label>
+                                <input type="number" step="0.01" value={eaPreferred} onChange={(e) => setEaPreferred(e.target.value)} placeholder="e.g. 2.00 (Current Value)" />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)' }}>Vesting Schedule</label>
+                                <select><option>4 Years (1 Year Cliff)</option></select>
+                            </div>
+                        </div>
+                        <button className="btn" style={{ width: '100%' }} onClick={() => {
+                            const opt = parseFloat(eaOptions);
+                            const strike = parseFloat(eaStrike);
+                            const pref = parseFloat(eaPreferred);
+                            if (isNaN(opt) || isNaN(strike) || isNaN(pref)) return alert("Please fill all fields with valid numbers.");
+                            setEaResult({ value: opt * (pref - strike), cost: opt * strike });
+                        }}>Calculate Value</button>
+                        {eaResult && (
+                            <div style={{ marginTop: '1.5rem', background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
+                                <div style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}><strong>Estimated Current Value:</strong> ${eaResult?.value?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                <div style={{ fontSize: '0.9rem', marginBottom: '1rem' }}><strong>Cost to Exercise:</strong> ${eaResult?.cost?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-main)' }}>Note: These options are "paper money" and cannot be cashed out until a liquidity event (like an IPO or Acquisition) happens.</div>
+                            </div>
+                        )}
+                    </div>
+                </section>
+            )}
+
+            {/* ── FEATURE 6: SKILLS GAP MODAL ── */}
+            {gapJob && (
+                <div className="modal" onClick={(e: any) => e.target.className === 'modal' && setGapJob(null)}>
+                    <div className="modal-content" style={{ maxWidth: '600px', background: 'var(--bg-body)' }}>
+                        <span className="close-btn" onClick={() => setGapJob(null)}>×</span>
+                        <h3 style={{ marginBottom: '0.25rem', fontSize: '1.15rem', fontWeight: 800 }}>🎯 Skills Gap Analysis</h3>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '1.25rem' }}>{gapJob.title} at <strong>{gapJob.company}</strong></p>
+                        {(() => {
+                            const m = calculatePrecisionMatch(candidateCV, gapJob);
+                            return (
+                                <>
+                                    <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                                        <div className="stat-box" style={{ flex: 1 }}><h4 style={{ fontSize: '1.6rem' }}>{m.matchPercentage}%</h4><p>Overall Match</p></div>
+                                        <div className="stat-box" style={{ flex: 1 }}><h4 style={{ fontSize: '1.6rem', color: '#047857' }}>{m.matchedSkills.length}</h4><p>Skills Matched</p></div>
+                                        <div className="stat-box" style={{ flex: 1 }}><h4 style={{ fontSize: '1.6rem', color: '#b91c1c' }}>{m.missingSkills.length}</h4><p>Skills Missing</p></div>
+                                    </div>
+                                    {m.matchedSkills.length > 0 && (
+                                        <div style={{ marginBottom: '1.5rem' }}>
+                                            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#047857', marginBottom: '0.75rem' }}>✅ Unlocked Skills (You have these):</div>
+                                            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                                                {m.matchedSkills.map(s => (
+                                                    <div key={s} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+                                                        <div className="skill-tree-node unlocked">✨</div>
+                                                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-heading)' }}>{s}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {m.missingSkills.length > 0 && (
+                                        <div>
+                                            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#b91c1c', marginBottom: '0.75rem' }}>❌ Quest Log: Skills to acquire:</div>
+                                            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                                                {m.missingSkills.map(s => (
+                                                    <a key={s} href={`https://www.youtube.com/results?search_query=learn+${encodeURIComponent(s)}+tutorial`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+                                                            <div className="skill-tree-node">🔒</div>
+                                                            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--danger)' }}>{s}</span>
+                                                        </div>
+                                                    </a>
+                                                ))}
+                                            </div>
+                                            <p style={{ fontSize: '0.75rem', color: 'var(--text-main)', marginTop: '1rem' }}>💡 Click any locked skill node to find free YouTube tutorials and level up!</p>
+                                        </div>
+                                    )}
+                                </>
+                            );
+                        })()}
+                        {/* Tracker removed */}
+                    </div>
+                </div>
+            )}
+            
+            </div>
+        </main>
         </div>
     );
 }
