@@ -355,6 +355,10 @@ export default function Home() {
         internships: 1,
         projects: "Predictive analytics pipeline with Kafka, neural network recommender, cloud microservices.",
         github: "https://github.com/aditya-meena",
+        linkedin: "https://linkedin.com/in/aditya-meena",
+        discord: "aditya_meena#1234",
+        cvLink: "https://docs.google.com/document/d/1...",
+        portfolio: "https://aditya-meena.com",
         certifications: "AWS Cloud Practitioner, DeepLearning.AI"
     });
 
@@ -1150,6 +1154,10 @@ export default function Home() {
         const internships = parseInt((form.elements.namedItem("cv-internships") as HTMLInputElement).value) || 0;
         const projects = (form.elements.namedItem("cv-projects") as HTMLTextAreaElement).value;
         const github = (form.elements.namedItem("cv-github") as HTMLInputElement).value;
+        const linkedin = (form.elements.namedItem("cv-linkedin") as HTMLInputElement).value || "";
+        const discord = (form.elements.namedItem("cv-discord") as HTMLInputElement).value || "";
+        const cvLink = (form.elements.namedItem("cv-link") as HTMLInputElement).value || "";
+        const portfolio = (form.elements.namedItem("cv-portfolio") as HTMLInputElement).value || "";
         const certs = (form.elements.namedItem("cv-certifications") as HTMLInputElement).value;
 
         const skillsArray = skillsRaw.split(",").map(s => s.trim()).filter(s => s.length > 0);
@@ -1163,6 +1171,10 @@ export default function Home() {
             internships: internships,
             projects: projects,
             github: github,
+            linkedin: linkedin,
+            discord: discord,
+            cvLink: cvLink,
+            portfolio: portfolio,
             certifications: certs
         });
 
@@ -1914,8 +1926,28 @@ export default function Home() {
                                         </div>
                                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                                             <div className="form-group">
-                                                <label>GitHub / Portfolio Link</label>
+                                                <label>GitHub Link</label>
                                                 <input type="url" id="cv-github" name="cv-github" defaultValue={candidateCV.github} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>LinkedIn Link</label>
+                                                <input type="url" id="cv-linkedin" name="cv-linkedin" defaultValue={candidateCV.linkedin} />
+                                            </div>
+                                        </div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                            <div className="form-group">
+                                                <label>Discord ID</label>
+                                                <input type="text" id="cv-discord" name="cv-discord" defaultValue={candidateCV.discord} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Portfolio/Profile Link</label>
+                                                <input type="url" id="cv-portfolio" name="cv-portfolio" defaultValue={candidateCV.portfolio} />
+                                            </div>
+                                        </div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                            <div className="form-group">
+                                                <label>CV/Resume Link</label>
+                                                <input type="url" id="cv-link" name="cv-link" defaultValue={candidateCV.cvLink} />
                                             </div>
                                             <div className="form-group">
                                                 <label>Certifications</label>
@@ -1960,7 +1992,29 @@ export default function Home() {
                                         <div className="item-row">
                                             <span>Portfolio Repository</span>
                                             <a href={candidateCV.github} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 600, color: 'var(--accent)', textDecoration: 'none' }}>
-                                                {candidateCV.github.replace('https://', '')} ↗
+                                                {candidateCV.github ? candidateCV.github.replace('https://', '') : 'N/A'} ↗
+                                            </a>
+                                        </div>
+                                        <div className="item-row">
+                                            <span>LinkedIn Profile</span>
+                                            <a href={candidateCV.linkedin} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 600, color: 'var(--accent)', textDecoration: 'none' }}>
+                                                {candidateCV.linkedin ? candidateCV.linkedin.replace('https://', '') : 'N/A'} ↗
+                                            </a>
+                                        </div>
+                                        <div className="item-row">
+                                            <span>Discord ID</span>
+                                            <strong>{candidateCV.discord || 'N/A'}</strong>
+                                        </div>
+                                        <div className="item-row">
+                                            <span>CV Document</span>
+                                            <a href={candidateCV.cvLink} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 600, color: 'var(--accent)', textDecoration: 'none' }}>
+                                                {candidateCV.cvLink ? 'View CV ↗' : 'N/A'}
+                                            </a>
+                                        </div>
+                                        <div className="item-row">
+                                            <span>Personal Profile</span>
+                                            <a href={candidateCV.portfolio} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 600, color: 'var(--accent)', textDecoration: 'none' }}>
+                                                {candidateCV.portfolio ? candidateCV.portfolio.replace('https://', '') : 'N/A'} ↗
                                             </a>
                                         </div>
                                     </div>
@@ -2390,7 +2444,10 @@ export default function Home() {
                                 <div><strong style={{ color: 'var(--text-heading)' }}>Verified CGPA:</strong> {candidateCV.cgpa}</div>
                                 <div style={{ marginTop: '0.4rem' }}><strong style={{ color: 'var(--text-heading)' }}>Tech Stack:</strong></div>
                                 <div style={{ color: 'var(--primary)', fontWeight: 600 }}>{candidateCV.skills.join(", ")}</div>
-                                <div style={{ marginTop: '0.4rem' }}><strong style={{ color: 'var(--text-heading)' }}>Portfolio:</strong> {candidateCV.github.replace('https://', '')}</div>
+                                <div style={{ marginTop: '0.4rem' }}><strong style={{ color: 'var(--text-heading)' }}>Portfolio:</strong> {candidateCV.github ? candidateCV.github.replace('https://', '') : 'N/A'}</div>
+                                <div><strong style={{ color: 'var(--text-heading)' }}>LinkedIn:</strong> {candidateCV.linkedin ? candidateCV.linkedin.replace('https://', '') : 'N/A'}</div>
+                                <div><strong style={{ color: 'var(--text-heading)' }}>Discord:</strong> {candidateCV.discord || 'N/A'}</div>
+                                <div><strong style={{ color: 'var(--text-heading)' }}>CV Link:</strong> {candidateCV.cvLink ? 'Available' : 'N/A'}</div>
                             </div>
                         </div>
                         
