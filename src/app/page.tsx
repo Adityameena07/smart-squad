@@ -1979,7 +1979,7 @@ export default function Home() {
                                         <div>
                                             <strong style={{ fontSize: '1.1rem', color: 'var(--text-heading)' }}>{candidateCV.branchName}</strong>
                                             <p style={{ fontSize: '0.9rem', color: 'var(--text-main)', marginTop: '0.2rem' }}>
-                                                Batch: <span>{candidateCV.year}</span> | Validated CGPA: <strong style={{ color: 'var(--primary)' }}>{candidateCV.cgpa.toFixed(2)}</strong>
+                                                Batch: <span>{candidateCV.year}</span> | Validated CGPA: <strong style={{ color: 'var(--primary)' }}>{candidateCV.cgpa ? Number(candidateCV.cgpa).toFixed(2) : 'N/A'}</strong>
                                             </p>
                                         </div>
                                         <span className="badge pass">Ready for 1,008 Pool</span>
