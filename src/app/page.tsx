@@ -343,24 +343,24 @@ export default function Home() {
     const [regNameInput, setRegNameInput] = useState("");
     const [regHandleInput, setRegHandleInput] = useState("");
     const [regDiscordInput, setRegDiscordInput] = useState("");
-    const [regBranchInput, setRegBranchInput] = useState("ai-ds");
+    const [regBranchInput, setRegBranchInput] = useState("");
     const [regPwdInput, setRegPwdInput] = useState("");
 
     // Candidate CV State
     const [candidateCV, setCandidateCV] = useState({
-        branch: "ai-ds",
-        branchName: "Artificial Intelligence & Data Science",
-        cgpa: 8.74,
-        year: 2026,
-        skills: ["Python", "SQL", "Machine Learning", "Data Structures", "PostgreSQL", "C++", "Linux", "Docker", "AWS"],
-        internships: 1,
-        projects: "Predictive analytics pipeline with Kafka, neural network recommender, cloud microservices.",
-        github: "https://github.com/aditya-meena",
-        linkedin: "https://linkedin.com/in/aditya-meena",
-        discord: "aditya_meena#1234",
-        cvLink: "https://docs.google.com/document/d/1...",
-        portfolio: "https://aditya-meena.com",
-        certifications: "AWS Cloud Practitioner, DeepLearning.AI"
+        branch: "",
+        branchName: "",
+        cgpa: "" as unknown as number,
+        year: "" as unknown as number,
+        skills: [] as string[],
+        internships: "" as unknown as number,
+        projects: "",
+        github: "",
+        linkedin: "",
+        discord: "",
+        cvLink: "",
+        portfolio: "",
+        certifications: ""
     });
 
     // Active Navigation Page View
@@ -1295,6 +1295,7 @@ export default function Home() {
                             <div className="form-group">
                                 <label>Select Engineering Branch (All 12 Disciplines)</label>
                                 <select value={regBranchInput} onChange={e => setRegBranchInput(e.target.value)}>
+                                    <option value="" disabled>Select your branch</option>
                                     <option value="ai-ds">Artificial Intelligence & Data Science (AI & DS)</option>
                                     <option value="cse">Computer Science & Engineering (CSE)</option>
                                     <option value="it">Information Technology (IT)</option>
@@ -1899,6 +1900,7 @@ export default function Home() {
                                         <div className="form-group">
                                             <label htmlFor="user-branch">Select Engineering Branch</label>
                                             <select id="user-branch" name="user-branch" defaultValue={candidateCV.branch} key={candidateCV.branch} required>
+                                                <option value="" disabled>Select your branch</option>
                                                 <option value="ai-ds">Artificial Intelligence & Data Science (AI & DS)</option>
                                                 <option value="cse">Computer Science & Engineering (CSE)</option>
                                                 <option value="it">Information Technology (IT)</option>
