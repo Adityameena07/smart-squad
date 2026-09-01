@@ -1467,7 +1467,6 @@ export default function Home() {
                     <li><a className={`nav-tab ${activeView === 'talent-drafts-page' ? 'active' : ''}`} onClick={() => { setActiveView('talent-drafts-page'); setIsSidebarOpen(false); }}>🤝 Talent Drafts (Reverse-Pitch)</a></li>
                     <li><a className={`nav-tab ${activeView === 'sprints-page' ? 'active' : ''}`} onClick={() => { setActiveView('sprints-page'); setIsSidebarOpen(false); }}>⚡ Micro-Internship Sprints</a></li>
                     <li><a className={`nav-tab ${activeView === 'skill-debt-page' ? 'active' : ''}`} onClick={() => { setActiveView('skill-debt-page'); setIsSidebarOpen(false); }}>🤖 AI Skill Debt Analyzer</a></li>
-                    <li><a className={`nav-tab ${activeView === 'mock-interview-page' ? 'active' : ''}`} onClick={() => { setActiveView('mock-interview-page'); setIsSidebarOpen(false); }}>🎙️ AI Mock Interview</a></li>
                 </ul>
 
                 <div className="sidebar-nav-title" style={{ marginTop: '0.85rem' }}>Zero-Compute Tools</div>
@@ -1476,7 +1475,6 @@ export default function Home() {
                     <li><a className={`nav-tab ${activeView === 'resume-roasts' ? 'active' : ''}`} onClick={() => { setActiveView('resume-roasts'); setIsSidebarOpen(false); }}>🔥 Peer Resume Roasts</a></li>
                     <li><a className={`nav-tab ${activeView === 'flashcards' ? 'active' : ''}`} onClick={() => { setActiveView('flashcards'); setIsSidebarOpen(false); }}>🧠 Spaced Repetition Flashcards</a></li>
                     <li><a className={`nav-tab ${activeView === 'github-portfolio' ? 'active' : ''}`} onClick={() => { setActiveView('github-portfolio'); setIsSidebarOpen(false); }}>🐙 GitHub Portfolio Generator</a></li>
-                    <li><a className={`nav-tab ${activeView === 'campus-heatmap' ? 'active' : ''}`} onClick={() => { setActiveView('campus-heatmap'); setIsSidebarOpen(false); }}>🗺️ Stipend & Ghosting Heatmap</a></li>
                 </ul>
 
 
@@ -2866,8 +2864,8 @@ export default function Home() {
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '120px' }}>
                                     {pitch.status === 'pending' ? (
                                         <>
-                                            <button className="btn" style={{ padding: '0.5rem' }} onClick={() => handlePitchResponse(pitch.id, 'accepted')}>Accept Pitch</button>
-                                            <button className="btn btn-outline" style={{ padding: '0.5rem' }} onClick={() => handlePitchResponse(pitch.id, 'declined')}>Decline</button>
+                                            <button className="btn" style={{ padding: '0.5rem' }} onClick={() => handlePitchResponse(pitch.id, 'accepted')}>Apply Pitch</button>
+                                            <div style={{ background: '#ecfdf5', color: '#059669', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600, textAlign: 'center' }}>Internship Option</div>
                                         </>
                                     ) : (
                                         <div style={{ textAlign: 'center', fontWeight: 600, color: pitch.status === 'accepted' ? 'var(--primary)' : 'var(--text-main)' }}>
@@ -2904,12 +2902,15 @@ export default function Home() {
                                         {sprint.pay}
                                     </div>
                                 </div>
-                                <div style={{ fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '1.25rem' }}>⏳ Duration: {sprint.duration}</div>
+                                <div style={{ fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span>⏳ Duration: {sprint.duration}</span>
+                                    <span style={{ background: '#ecfdf5', color: '#059669', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>Internship Option</span>
+                                </div>
                                 
                                 {sprintBids.has(sprint.id) ? (
                                     <button className="btn btn-outline" disabled style={{ width: '100%' }}>Bid Submitted ✅</button>
                                 ) : (
-                                    <button className="btn" style={{ width: '100%' }} onClick={() => setSprintBidModal(sprint.id)}>Submit 200-Word Bid</button>
+                                    <button className="btn" style={{ width: '100%' }} onClick={() => setSprintBidModal(sprint.id)}>Apply Pitch</button>
                                 )}
                             </div>
                         ))}
