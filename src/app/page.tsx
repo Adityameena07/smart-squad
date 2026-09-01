@@ -342,6 +342,7 @@ export default function Home() {
     const [loginPwdInput, setLoginPwdInput] = useState("");
     const [regNameInput, setRegNameInput] = useState("");
     const [regHandleInput, setRegHandleInput] = useState("");
+    const [regDiscordInput, setRegDiscordInput] = useState("");
     const [regBranchInput, setRegBranchInput] = useState("ai-ds");
     const [regPwdInput, setRegPwdInput] = useState("");
 
@@ -1058,7 +1059,8 @@ export default function Home() {
         const updatedCV = {
             ...candidateCV,
             branch: branch,
-            branchName: branchName
+            branchName: branchName,
+            discord: regDiscordInput.trim() || candidateCV.discord
         };
         setCandidateCV(updatedCV);
         if (typeof window !== 'undefined') localStorage.setItem('smartSquadCV', JSON.stringify(updatedCV));
@@ -1306,6 +1308,15 @@ export default function Home() {
                                     <option value="biotech">Biotechnology Engineering (BIOTECH)</option>
                                     <option value="metallurgy">Metallurgical & Materials Engineering (MME)</option>
                                 </select>
+                            </div>
+                            <div className="form-group">
+                                <label>Discord ID</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="e.g. yourname#1234"
+                                    value={regDiscordInput} 
+                                    onChange={e => setRegDiscordInput(e.target.value)} 
+                                />
                             </div>
                             <div className="form-group">
                                 <label>Password</label>
