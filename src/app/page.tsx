@@ -360,7 +360,8 @@ export default function Home() {
         discord: "",
         cvLink: "",
         portfolio: "",
-        certifications: ""
+        certifications: "",
+        email: ""
     });
 
     // Active Navigation Page View
@@ -1160,6 +1161,7 @@ export default function Home() {
         const discord = (form.elements.namedItem("cv-discord") as HTMLInputElement).value || "";
         const cvLink = (form.elements.namedItem("cv-link") as HTMLInputElement).value || "";
         const portfolio = (form.elements.namedItem("cv-portfolio") as HTMLInputElement).value || "";
+        const email = (form.elements.namedItem("cv-email") as HTMLInputElement).value || "";
         const certs = (form.elements.namedItem("cv-certifications") as HTMLInputElement).value;
 
         const skillsArray = skillsRaw.split(",").map(s => s.trim()).filter(s => s.length > 0);
@@ -1177,7 +1179,8 @@ export default function Home() {
             discord: discord,
             cvLink: cvLink,
             portfolio: portfolio,
-            certifications: certs
+            certifications: certs,
+            email: email
         });
 
         alert("✅ CV & Branch profile updated! Precision scoring recalibrated over 2,016 active listings.");
@@ -1967,6 +1970,10 @@ export default function Home() {
                                                 <input type="text" id="cv-certifications" name="cv-certifications" defaultValue={candidateCV.certifications} />
                                             </div>
                                         </div>
+                                        <div className="form-group">
+                                            <label>Notification Email ID (Jobs/Placements/Internships)</label>
+                                            <input type="email" id="cv-email" name="cv-email" defaultValue={candidateCV.email} placeholder="For updates on your applications" />
+                                        </div>
                                         <button className="btn" type="submit" style={{ width: '100%', padding: '0.8rem' }}>
                                             Save CV & Recalibrate 1,008 Matches
                                         </button>
@@ -2017,6 +2024,10 @@ export default function Home() {
                                         <div className="item-row">
                                             <span>Discord ID</span>
                                             <strong>{candidateCV.discord || 'N/A'}</strong>
+                                        </div>
+                                        <div className="item-row">
+                                            <span>Notification Email</span>
+                                            <strong>{candidateCV.email || 'N/A'}</strong>
                                         </div>
                                         <div className="item-row">
                                             <span>CV Document</span>
